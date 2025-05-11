@@ -268,17 +268,26 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 				}
 			}
 			// —————  CHECK BANNED OR ONLY ADMIN BOX  ————— //
-			if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode))
-				return;
-			if (!command)
-				if (!hideNotiMessage.commandNotFound)
-					return await message.reply(
-						commandName ?
-							utils.getText({ lang: langCode, head: "handlerEvents" }, "commandNotFound", commandName, prefix) :
-							utils.getText({ lang: langCode, head: "handlerEvents" }, "commandNotFound2", prefix)
-					);
-				else
-					return true;
+			function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode) {
+  // Check if user is banned
+  if (userData && userData.banned && userData.banned.status) {
+    const { reason, dateAdded } = userData.banned;
+    return message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "userBanned", reason, dateAdded));
+  }
+
+  // Check if thread is banned
+  if (isGroup && threadData && threadData.banned && threadData.banned.status) {
+    const { reason, dateAdded } = threadData.banned;
+    return message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "threadBanned", reason, dateAdded));
+  }
+
+  // Check if command is admin only
+  if (commandName && global.client.commandsConfig[commandName]?.adminOnly && senderID !== global.config.OWNER_ID) {
+    return message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "adminOnly"));
+  }
+
+  return false;
+}
 			// ————————————— CHECK PERMISSION ———————————— //
 const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
 const needRole = roleConfig.onStart;
