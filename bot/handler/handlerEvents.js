@@ -30,7 +30,7 @@ function getText(type, reason, time, targetID, lang) {
 	else if (type == "onlyAdminBot")
 		return utils.getText({ lang, head: "handlerEvents" }, "onlyAdminBot");
 	else if (type == "onlyOwner")
-	        return "❌ | Only the bot Owner can use this command.";
+		return "❌ | Only the bot Owner can use this command."; // Direct hardcoded message
 }
 function replaceShortcutInLang(text, prefix, commandName) {
 	return text
