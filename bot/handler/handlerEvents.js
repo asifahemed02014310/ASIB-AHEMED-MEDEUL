@@ -6,14 +6,25 @@ const nullAndUndefined = [undefined, null];
 function getType(obj) {
 	return Object.prototype.toString.call(obj).slice(8, -1);
 }
-
 function getRole(threadData, senderID) {
-	const adminBot = global.GoatBot.config.adminBot || [];
-	if (!senderID)
-		return 0;
-	const adminBox = threadData ? threadData.adminIDs || [] : [];
-	return adminBot.includes(senderID) ? 2 : adminBox.includes(senderID) ? 1 : 0;
+    const adminBot = global.GoatBot.config.adminBot || [];
+    const ownerBot = global.GoatBot.config.ownerBot || [];
+    
+    if (!senderID)
+        return 0;
+        
+    const adminBox = threadData ? threadData.adminIDs || [] : [];
+    
+    if (ownerBot.includes(senderID))
+        return 3;
+    else if (adminBot.includes(senderID))
+        return 2;
+    else if (adminBox.includes(senderID))
+        return 1;
+    else
+        return 0;
 }
+
 
 function getText(type, reason, time, targetID, lang) {
 	const utils = global.utils;
@@ -81,17 +92,26 @@ function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, 
 			message.reply(getText("userBanned", reason, date, senderID, lang));
 		return true;
 	}
+// Check for adminOnly restriction
+if (
+    config.adminOnly.enable == true
+    && !adminBot.includes(senderID)
+    && !config.adminOnly.ignoreCommand.includes(commandName)
+) {
+    if (hideNotiMessage.adminOnly == false)
+        message.reply(getText("onlyAdminBot", null, null, null, lang));
+    return true;
+}
 
-	// check if only admin bot
-	if (
-		config.adminOnly.enable == true
-		&& !adminBot.includes(senderID)
-		&& !config.adminOnly.ignoreCommand.includes(commandName)
-	) {
-		if (hideNotiMessage.adminOnly == false)
-			message.reply(getText("onlyAdminBot", null, null, null, lang));
-		return true;
-	}
+// Check for ownerOnly 
+if (
+    config.ownerOnly.enable == true
+    && !ownerBot.includes(senderID)
+    && !config.adminOnly.ignoreCommand.includes(commandName)
+) {
+    message.reply(getText("onlyOwnerBot", null, null, null, lang));
+    return true;
+}
 
 	// ==========    Check Thread    ========== //
 	if (isGroup == true) {
@@ -260,20 +280,23 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 				else
 					return true;
 			// ————————————— CHECK PERMISSION ———————————— //
-			const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
-			const needRole = roleConfig.onStart;
+const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
+const needRole = roleConfig.onStart;
 
-			if (needRole > role) {
-				if (!hideNotiMessage.needRoleToUseCmd) {
-					if (needRole == 1)
-						return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdmin", commandName));
-					else if (needRole == 2)
-						return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminBot2", commandName));
-				}
-				else {
-					return true;
-				}
-			}
+if (needRole > role) {
+    if (!hideNotiMessage.needRoleToUseCmd) {
+        if (needRole == 1)
+            return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdmin", commandName));
+        else if (needRole == 2)
+            return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminBot2", commandName));
+        else if (needRole == 3)
+            return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyOwnerBot", commandName));
+    }
+    else {
+        return true;
+    }
+}
+
 			// ———————————————— countDown ———————————————— //
 			if (!client.countDown[commandName])
 				client.countDown[commandName] = {};
@@ -515,19 +538,21 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 			}
 
 			// —————————————— CHECK PERMISSION —————————————— //
-			const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
-			const needRole = roleConfig.onReply;
-			if (needRole > role) {
-				if (!hideNotiMessage.needRoleToUseCmdOnReply) {
-					if (needRole == 1)
-						return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminToUseOnReply", commandName));
-					else if (needRole == 2)
-						return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminBot2ToUseOnReply", commandName));
-				}
-				else {
-					return true;
-				}
-			}
+const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
+const needRole = roleConfig.onReply;
+if (needRole > role) {
+    if (!hideNotiMessage.needRoleToUseCmdOnReply) {
+        if (needRole == 1)
+            return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminToUseOnReply", commandName));
+        else if (needRole == 2)
+            return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminBot2ToUseOnReply", commandName));
+        else if (needRole == 3)
+            return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyOwnerBotToUseOnReply", commandName));
+    }
+    else {
+        return true;
+    }
+}
 
 			const getText2 = createGetText2(langCode, `${process.cwd()}/languages/cmds/${langCode}.js`, prefix, command);
 			const time = getTime("DD/MM/YYYY HH:mm:ss");
@@ -577,19 +602,21 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 			}
 
 			// —————————————— CHECK PERMISSION —————————————— //
-			const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
-			const needRole = roleConfig.onReaction;
-			if (needRole > role) {
-				if (!hideNotiMessage.needRoleToUseCmdOnReaction) {
-					if (needRole == 1)
-						return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminToUseOnReaction", commandName));
-					else if (needRole == 2)
-						return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminBot2ToUseOnReaction", commandName));
-				}
-				else {
-					return true;
-				}
-			}
+const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
+const needRole = roleConfig.onReaction;
+if (needRole > role) {
+    if (!hideNotiMessage.needRoleToUseCmdOnReaction) {
+        if (needRole == 1)
+            return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminToUseOnReaction", commandName));
+        else if (needRole == 2)
+            return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminBot2ToUseOnReaction", commandName));
+        else if (needRole == 3)
+            return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyOwnerBotToUseOnReaction", commandName));
+    }
+    else {
+        return true;
+    }
+}
 			// —————————————————————————————————————————————— //
 
 			const time = getTime("DD/MM/YYYY HH:mm:ss");
