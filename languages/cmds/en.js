@@ -116,7 +116,7 @@ module.exports = {
 		text: {
 			onText: "on",
 			offText: "off",
-	                onlyOwner: "❌ | Only the bot owner can use this command.",
+	                onlyOwner: "❌ Only the bot owner can use \"%1\" command",
 			onlyAdmin: "⚠️ | Only admins can add banned words to the list",
 			missingWords: "⚠️ | You haven't entered the banned words",
 			addedSuccess: "✅ | Added %1 banned words to the list",
