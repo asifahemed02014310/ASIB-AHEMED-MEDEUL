@@ -76,10 +76,9 @@ function getRoleConfig(utils, command, isGroup, threadData, commandName) {
 
 function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, lang) {
 	const config = global.GoatBot.config;
-	// Add ownerBot to destructured properties
 	const { adminBot, ownerBot, hideNotiMessage } = config;
 
-	// check if user banned
+	// Check if user is banned
 	const infoBannedUser = userData.banned;
 	if (infoBannedUser.status == true) {
 		const { reason, date } = infoBannedUser;
@@ -88,11 +87,19 @@ function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, 
 		return true;
 	}
 
-	// check if only admin bot
+	// ➕ OwnerOnly Mode Check ➕
 	if (
-		config.adminOnly.enable == true
-		&& !adminBot.includes(senderID)
-		&& !config.adminOnly.ignoreCommand.includes(commandName)
+		config.ownerOnly.enable == true &&
+		!ownerBot.includes(senderID)
+	) {
+		return true; // Silently ignore non-owners
+	}
+
+	// Check if only admin bot
+	if (
+		config.adminOnly.enable == true &&
+		!adminBot.includes(senderID) &&
+		!config.adminOnly.ignoreCommand.includes(commandName)
 	) {
 		if (hideNotiMessage.adminOnly == false)
 			message.reply(getText("onlyAdminBot", null, null, null, lang));
@@ -102,9 +109,9 @@ function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, 
 	// ==========    Check Thread    ========== //
 	if (isGroup == true) {
 		if (
-			threadData.data.onlyAdminBox === true
-			&& !threadData.adminIDs.includes(senderID)
-			&& !(threadData.data.ignoreCommanToOnlyAdminBox || []).includes(commandName)
+			threadData.data.onlyAdminBox === true &&
+			!threadData.adminIDs.includes(senderID) &&
+			!(threadData.data.ignoreCommanToOnlyAdminBox || []).includes(commandName)
 		) {
 			// check if only admin box
 			if (!threadData.data.hideNotiMessageOnlyAdminBox)
