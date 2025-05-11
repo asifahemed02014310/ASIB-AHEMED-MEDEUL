@@ -8,11 +8,15 @@ function getType(obj) {
 }
 
 function getRole(threadData, senderID) {
-	const adminBot = global.GoatBot.config.adminBot || [];
+	const config = global.GoatBot.config;
+	const ownerBot = config.ownerBot || [];
+	const adminBot = config.adminBot || [];
 	if (!senderID)
 		return 0;
 	const adminBox = threadData ? threadData.adminIDs || [] : [];
-	return adminBot.includes(senderID) ? 2 : adminBox.includes(senderID) ? 1 : 0;
+	return ownerBot.includes(senderID) ? 3 : 
+		adminBot.includes(senderID) ? 2 : 
+		adminBox.includes(senderID) ? 1 : 0;
 }
 
 function getText(type, reason, time, targetID, lang) {
@@ -25,8 +29,9 @@ function getText(type, reason, time, targetID, lang) {
 		return utils.getText({ lang, head: "handlerEvents" }, "onlyAdminBox");
 	else if (type == "onlyAdminBot")
 		return utils.getText({ lang, head: "handlerEvents" }, "onlyAdminBot");
+	else if (type == "onlyOwner")
+		return utils.getText({ lang, head: "handlerEvents" }, "onlyOwner");
 }
-
 function replaceShortcutInLang(text, prefix, commandName) {
 	return text
 		.replace(/\{(?:p|prefix)\}/g, prefix)
@@ -55,23 +60,24 @@ function getRoleConfig(utils, command, isGroup, threadData, commandName) {
 	if (isGroup)
 		roleConfig.onStart = threadData.data.setRole?.[commandName] ?? roleConfig.onStart;
 
+	// Set default values for all role types
 	for (const key of ["onChat", "onStart", "onReaction", "onReply"]) {
 		if (roleConfig[key] == undefined)
 			roleConfig[key] = roleConfig.onStart;
+		
+		// Ensure role value doesn't exceed maximum (3)
+		if (roleConfig[key] > 3)
+			roleConfig[key] = 3;
 	}
 
 	return roleConfig;
-	// {
-	// 	onChat,
-	// 	onStart,
-	// 	onReaction,
-	// 	onReply
-	// }
 }
+
 
 function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, lang) {
 	const config = global.GoatBot.config;
-	const { adminBot, hideNotiMessage } = config;
+	// Add ownerBot to destructured properties
+	const { adminBot, ownerBot, hideNotiMessage } = config;
 
 	// check if user banned
 	const infoBannedUser = userData.banned;
@@ -263,17 +269,19 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 			const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
 			const needRole = roleConfig.onStart;
 
-			if (needRole > role) {
-				if (!hideNotiMessage.needRoleToUseCmd) {
-					if (needRole == 1)
-						return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdmin", commandName));
-					else if (needRole == 2)
-						return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminBot2", commandName));
-				}
-				else {
-					return true;
-				}
-			}
+if (needRole > role) {
+	if (!hideNotiMessage.needRoleToUseCmd) {
+		if (needRole == 1)
+			return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdmin", commandName));
+		else if (needRole == 2)
+			return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyAdminBot2", commandName));
+		else if (needRole == 3) // Add case for owner role
+			return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "onlyOwner", commandName));
+	}
+	else {
+		return true;
+	}
+}
 			// ———————————————— countDown ———————————————— //
 			if (!client.countDown[commandName])
 				client.countDown[commandName] = {};
@@ -286,8 +294,9 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 				const expirationTime = timestamps[senderID] + cooldownCommand;
 				if (dateNow < expirationTime)
 					return await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "waitingForCommand", ((expirationTime - dateNow) / 1000).toString().slice(0, 3)));
-			}
-			// ——————————————— RUN COMMAND ——————————————— //
+		}
+
+					// ——————————————— RUN COMMAND ——————————————— //
 			const time = getTime("DD/MM/YYYY HH:mm:ss");
 			isUserCallCommand = true;
 			try {
@@ -325,6 +334,15 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 		 +------------------------------------------------+
 		*/
 		async function onChat() {
+		    
+		    	if (!body || !body.startsWith(prefix))
+		return;
+
+	// ➕ Add Owner Only Check
+	const config = global.GoatBot.config;
+	if (config.ownerOnly.enable && !config.ownerBot.includes(senderID)) {
+		return; // Simply ignore without any response
+	}
 			const allOnChat = GoatBot.onChat || [];
 			const args = body ? body.split(/ +/) : [];
 			for (const key of allOnChat) {
