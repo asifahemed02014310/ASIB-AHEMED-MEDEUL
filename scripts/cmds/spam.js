@@ -1,24 +1,50 @@
 module.exports = {
   config: {
     name: "spam",
-    aurthor:"kim/zed",// Convert By Goatbot Zed
-     role: 2,
-    shortDescription: " ",
-    longDescription: "",
+    aliases : ["bolo","bol","b","s"],
+    author: "nur",
+    role: 2,
+    shortDescription: "Spam messages with various options",
+    longDescription: "Spam messages with customizable count and mentioning users",
     category: "owner",
-    guide: "{pn}"
+    guide: "{pn} [amount] [message]\n{pn} [message] (defaults to 1 spam)"
   },
 
   onStart: async function ({ api, event, args }) {
-	const amount = parseInt(args[0]);
-	const message = args.slice(1).join(" ");
+    let amount = 1; 
+    let message = '';
+    let mentionTag = [];
+    let targetThreadID = event.threadID;
+    if (!isNaN(parseInt(args[0]))) {
+      amount = parseInt(args[0]);
+      message = args.slice(1).join(" ");
+    } else {
+      message = args.join(" ");
+    }
 
-	if (isNaN(amount) || !message) {
-		return api.sendMessage("Invalid usage. Usage: /spam [amount] [message]", event.threadID);
-	}
+    if (!message) {
+      return api.sendMessage("Please provide a message to spam.", event.threadID);
+    }
 
-	for (let i = 0; i < amount; i++) {
-		api.sendMessage(message, event.threadID);
-	}
+    if (event.mentions) {
+      const mentions = Object.keys(event.mentions);
+      if (mentions.length > 0) {
+        mentionTag = mentions.map(mention => ({
+          tag: event.mentions[mention],
+          id: mention
+        }));
+      }
+    }
+
+    const messageOptions = {
+      body: message,
+      mentions: mentionTag.length > 0 ? mentionTag : undefined
+    };
+
+    for (let i = 0; i < amount; i++) {
+      await api.sendMessage(messageOptions, targetThreadID);
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   },
 };
