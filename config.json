@@ -90,7 +90,7 @@
 	"autoRestartWhenListenMqttError": false,
 	"restartListenMqtt": {
 		"enable": true,
-		"timeRestart": 600000,
+		"timeRestart": 300000,
 		"delayAfterStopListening": 2000,
 		"logNoti": true,
 		"notes": "the value of timeRestart and delayAfterStopListening is milisecond, You shouldn't edit this if you don't know what it is"
