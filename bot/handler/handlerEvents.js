@@ -341,58 +341,63 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 		 +------------------------------------------------+
 		*/
 		async function onChat() {
-			const allOnChat = GoatBot.onChat || [];
-			const args = body ? body.split(/ +/) : [];
-			for (const key of allOnChat) {
-				const command = GoatBot.commands.get(key);
-				if (!command)
-					continue;
-				const commandName = command.config.name;
+	const allOnChat = GoatBot.onChat || [];
+	const args = body ? body.split(/ +/) : [];
+	
+	// Prevent onChat from processing command messages
+	if (body && body.startsWith(prefix)) {
+		return;
+	}
 
-				// —————————————— CHECK PERMISSION —————————————— //
-				const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
-				const needRole = roleConfig.onChat;
-				if (needRole > role)
-					continue;
+	for (const key of allOnChat) {
+		const command = GoatBot.commands.get(key);
+		if (!command)
+			continue;
+		const commandName = command.config.name;
 
-				const getText2 = createGetText2(langCode, `${process.cwd()}/languages/cmds/${langCode}.js`, prefix, command);
-				const time = getTime("DD/MM/YYYY HH:mm:ss");
-				createMessageSyntaxError(commandName);
+		// —————————————— CHECK PERMISSION —————————————— //
+		const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
+		const needRole = roleConfig.onChat;
+		if (needRole > role)
+			continue;
 
-				if (getType(command.onChat) == "Function") {
-					const defaultOnChat = command.onChat;
-					// convert to AsyncFunction
-					command.onChat = async function () {
-						return defaultOnChat(...arguments);
-					};
-				}
+		const getText2 = createGetText2(langCode, `${process.cwd()}/languages/cmds/${langCode}.js`, prefix, command);
+		const time = getTime("DD/MM/YYYY HH:mm:ss");
+		createMessageSyntaxError(commandName);
 
-				command.onChat({
-					...parameters,
-					isUserCallCommand,
-					args,
-					commandName,
-					getLang: getText2
-				})
-					.then(async (handler) => {
-						if (typeof handler == "function") {
-							if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode))
-								return;
-							try {
-								await handler();
-								log.info("onChat", `${commandName} | ${userData.name} | ${senderID} | ${threadID} | ${args.join(" ")}`);
-							}
-							catch (err) {
-								await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "errorOccurred2", time, commandName, removeHomeDir(err.stack ? err.stack.split("\n").slice(0, 5).join("\n") : JSON.stringify(err, null, 2))));
-							}
-						}
-					})
-					.catch(err => {
-						log.err("onChat", `An error occurred when calling the command onChat ${commandName}`, err);
-					});
-			}
+		if (getType(command.onChat) == "Function") {
+			const defaultOnChat = command.onChat;
+			// convert to AsyncFunction
+			command.onChat = async function () {
+				return defaultOnChat(...arguments);
+			};
 		}
 
+		command.onChat({
+			...parameters,
+			isUserCallCommand,
+			args,
+			commandName,
+			getLang: getText2
+		})
+			.then(async (handler) => {
+				if (typeof handler == "function") {
+					if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode))
+						return;
+					try {
+						await handler();
+						log.info("onChat", `${commandName} | ${userData.name} | ${senderID} | ${threadID} | ${args.join(" ")}`);
+					}
+					catch (err) {
+						await message.reply(utils.getText({ lang: langCode, head: "handlerEvents" }, "errorOccurred2", time, commandName, removeHomeDir(err.stack ? err.stack.split("\n").slice(0, 5).join("\n") : JSON.stringify(err, null, 2))));
+					}
+				}
+			})
+			.catch(err => {
+				log.err("onChat", `An error occurred when calling the command onChat ${commandName}`, err);
+			});
+	}
+}
 
 		/*
 		 +------------------------------------------------+
