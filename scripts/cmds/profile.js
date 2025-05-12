@@ -9,7 +9,7 @@ module.exports = {
     description: "info",
     category: "info",
     guide: { en: "{pn} @tag or userID or reply to a message or provide a Facebook URL" },
-    noPrefix: true
+    noPrefix: false 
   },
 
   handleCommand: async function ({ event, message, usersData, args }) {
