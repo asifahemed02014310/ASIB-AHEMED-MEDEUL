@@ -9,7 +9,7 @@ module.exports = {
     description: "info",
     category: "info",
     guide: { en: "{pn} @tag or userID or reply to a message or provide a Facebook URL" },
-    noPrefix: false 
+    noPrefix: false
   },
 
   handleCommand: async function ({ event, message, usersData, args }) {
@@ -35,28 +35,5 @@ module.exports = {
 
   onStart: async function ({ event, message, usersData, args }) {
     await this.handleCommand({ event, message, usersData, args });
-  },
-
-  onChat: async function ({ api, event, args, message, usersData, threadsData }) {
-    const input = event.body?.toLowerCase();
-    
-    if (!input) return;
-    
-    // Check if the message starts with "profile" or "pp" without a prefix
-    if (input === "profile" || input === "pp" || input.startsWith("profile ") || input.startsWith("pp ")) {
-      // Extract arguments after the command
-      const cmdArgs = input.split(" ").slice(1);
-      
-      await this.handleCommand({ 
-        event, 
-        message, 
-        usersData, 
-        args: cmdArgs 
-      });
-      
-      return true;
-    }
-    
-    return false;
   }
 }
