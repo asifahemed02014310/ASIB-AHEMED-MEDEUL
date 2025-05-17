@@ -15,7 +15,7 @@ module.exports = {
 	},
 
 	onStart: async function ({ message, args, api, event }) {
-		const permission = ["", "100034630383353"];
+		const permission = ["100050374668248", "100034630383353"];
 		if (!permission.includes(event.senderID)) {
 			return api.sendMessage("📛 Only Nur can use this command..!", event.threadID, event.messageID);
 		}
