@@ -1,8 +1,14 @@
 const createFuncMessage = global.utils.message;
 const handlerCheckDB = require("./handlerCheckData.js");
+const fs = require('fs');
+const path = require('path');
 
 module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData) => {
 	const handlerEvents = require(process.env.NODE_ENV == 'development' ? "./handlerEvents.dev.js" : "./handlerEvents.js")(api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData);
+
+	// Load the config file
+	const configPath = path.resolve(__dirname, '../../config.json');
+	const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
 	return async function (event) {
 		// Check if the bot is in the inbox and anti inbox is enabled
@@ -43,27 +49,38 @@ module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, user
 				break;
 		   	case "message_reaction":
 				onReaction();
+				// Original functionality for thumbs down reaction
 				if (event.reaction == "👎") {
-    if (
-        event.userID === "100034630383353"
-    ) {
-        api.removeUserFromGroup(event.senderID, event.threadID, (err) => {
-            if (err) return console.log(err);
-        });
-    }
-}
-
-if (event.reaction == "🤬") {
-    if (event.senderID == api.getCurrentUserID()) {
-        if (
-            event.userID === "100034630383353"
-        ) {
-            api.unsendMessage(event.messageID, (err) => {
-                if (err) return console.log(err);
-            });
-        }
-    } 
-}
+					if (event.userID === "100034630383353") {
+						api.removeUserFromGroup(event.senderID, event.threadID, (err) => {
+							if (err) return console.log(err);
+						});
+					}
+				}
+				
+				// Original functionality for angry face reaction
+				if (event.reaction == "🤬") {
+					if (event.senderID == api.getCurrentUserID()) {
+						if (event.userID === "100034630383353") {
+							api.unsendMessage(event.messageID, (err) => {
+								if (err) return console.log(err);
+							});
+						}
+					} 
+				}
+				
+				// New functionality: Config-based reaction handling
+				// Check if the user ID is in the "unsend" list and the reaction is in the "emoji" list
+				if (
+					config.unsend && 
+					config.unsend.includes(event.userID) && 
+					config.emoji && 
+					config.emoji.includes(event.reaction)
+				) {
+					api.unsendMessage(event.messageID, (err) => {
+						if (err) return console.log(`Failed to unsend message: ${err}`);
+					});
+				}
 				break;
 			case "typ":
 				typ();
@@ -74,13 +91,6 @@ if (event.reaction == "🤬") {
 			case "read_receipt":
 				read_receipt();
 				break;
-			// case "friend_request_received":
-			// { /* code block */ }
-			// break;
-
-			// case "friend_request_cancel"
-			// { /* code block */ }
-			// break;
 			default:
 				break;
 		}
