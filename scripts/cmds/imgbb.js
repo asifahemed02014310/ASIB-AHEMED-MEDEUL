@@ -1,58 +1,95 @@
-const axios = require('axios');
-
-const baseApiUrl = async () => {
-  const base = await axios.get('https://raw.githubusercontent.com/EwrShAn25/ShAn.s-Api/refs/heads/main/Api.json');
-  return base.data.shan;
-};
-
 module.exports = {
-  config: {
-    name: "imgbb",
-    aliases: ["i"],
-    version: "1.0",
-    author: "𝗦𝗵𝗔𝗻",
-    countDown: 5,
-    role: 0,
-    shortDescription: {
-      en: "Convert image to an ImgBB URL"
-    },
-    longDescription: {
-      en: "Upload image to imgbb by replying to a photo using an external API"
-    },
-    category: "Tool",
-    guide: {
-      en: "{p}{n} [reply to an image]"
-    }
-  },
+	config: {
+		name: "imgbb",
+		aliases: ["i"],
+		version: "1.1",
+		author: "Nur",
+		countDown: 1,
+		role: 0,
+		shortDescription: {
+			en: "Upload images to imgbb"
+		},
+		description: {
+			en: "Upload images to imgbb hosting service and get sharing links"
+		},
+		category: "tools",
+		guide: {
+			en: "{p}imgbb [reply to an image] - Upload the image to imgbb\n{p}imgbb url [image url] - Upload an image from URL to imgbb"
+		} 
+	},
 
-  onStart: async function ({ api, event }) {
-    if (!event.messageReply || !event.messageReply.attachments || event.messageReply.attachments.length === 0) {
-      return api.sendMessage('⚠️ Please reply to an image to upload it to ImgBB.', event.threadID, event.messageID);
-    }
+	langs: {
+		en: {
+			missingImage: "Please reply to an image or provide an image URL to upload and get link",
+			uploadingImage: "Uploading your image to imgbb...",
+			uploadSuccess: "✅ Upload successful\n \n🖼 link: %2",
+			uploadFailed: "❌ Failed to upload image: %1",
+			invalidUrl: "Invalid URL. Please provide a valid image URL."
+		}
+	},
 
-    const attachment = event.messageReply.attachments[0];
-    if (attachment.type !== "photo") {
-      return api.sendMessage('❌ The replied message is not an image.', event.threadID, event.messageID);
-    }
-
-    const linkanh = attachment.url;
-
-    try {
-      const apiUrl = `${await baseApiUrl()}/ShAn/imgbb`;
-      const ShAn = await axios.post(apiUrl, {
-        imageUrl: linkanh
-      });
-
-      if (!ShAn.data || !ShAn.data.imageUrl) {
-        throw new Error('Invalid response from API');
-      }
-
-      const ShaN = ShAn.data.imageUrl;
-      return api.sendMessage(`✅ Image uploaded successfully!\n\n🔗Link :${ShaN}`, event.threadID, event.messageID);
-    } catch (error) {
-      console.error('ImgBB Upload Error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to upload image';
-      return api.sendMessage(`❌ Error: ${errorMessage}`, event.threadID, event.messageID);
-    }
-  }
+	onStart: async function ({ api, args, message, event, getLang }) {
+		const axios = require("axios");
+		const fs = require("fs");
+		const path = require("path");
+		const FormData = require('form-data');
+		
+		const apiEndpoint = "https://nur-s-api.onrender.com/Nurimg";
+		let imageUrl;
+		let imageBuffer;
+		
+		if (args[0] === "url" && args[1]) {
+			imageUrl = args[1];
+			
+			if (!isValidUrl(imageUrl)) {
+				return message.reply(getLang("invalidUrl"));
+			}
+		} 
+		else if (event.messageReply && event.messageReply.attachments && event.messageReply.attachments[0] && event.messageReply.attachments[0].type === "photo") {
+			imageUrl = event.messageReply.attachments[0].url;
+		} 
+		else {
+			return message.reply(getLang("missingImage"));
+		}
+		
+		message.reply(getLang("uploadingImage"));
+		
+		try {
+			const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
+			imageBuffer = Buffer.from(response.data);
+			
+			const formData = new FormData();
+			formData.append("image", imageBuffer, {
+				filename: "image.jpg",
+				contentType: "image/jpeg"
+			});
+			
+			const uploadResponse = await axios.post(apiEndpoint, formData, {
+				headers: {
+					...formData.getHeaders()
+				}
+			});
+			
+			if (uploadResponse.data && uploadResponse.data.success) {
+				const result = uploadResponse.data.data;
+				const imageUrl = result.url_viewer || result.url;
+				const directUrl = result.image?.url || result.display_url;
+				const deleteUrl = result.delete_url || "Not available";
+				message.reply(getLang("uploadSuccess", imageUrl, directUrl, deleteUrl));
+			} else {
+				message.reply(getLang("uploadFailed", "Unknown error"));
+			}
+		} catch (error) {
+			console.error("Error uploading to imgbb:", error.message);
+			message.reply(getLang("uploadFailed", error.message));
+		}
+	}
 };
+function isValidUrl(string) {
+	try {
+		new URL(string);
+		return true;
+	} catch (_) {
+		return false;
+	}
+}
