@@ -19,7 +19,7 @@ module.exports = {
       try {
         return await message.reply({
           body: "Fuck you too🖕",
-          attachment: await global.utils.getStreamFromURL("https://i.imgur.com/9bNeakd.gif")
+          attachment: await global.utils.getStreamFromURL("https://i.ibb.co/sdx6kbgX/1747517965749-image.jpg")
         });
       } catch (err) {
         console.error("Error in fuck you module:", err);
