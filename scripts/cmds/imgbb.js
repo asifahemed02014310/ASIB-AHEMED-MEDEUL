@@ -21,8 +21,7 @@ module.exports = {
 	langs: {
 		en: {
 			missingImage: "Please reply to an image or provide an image URL to upload and get link",
-			uploadingImage: "Uploading your image to imgbb...",
-			uploadSuccess: "✅ Upload successful\n \n🖼 link: %2",
+			uploadSuccess: "✅ Upload successful\n \n️🔗 link: %1",
 			uploadFailed: "❌ Failed to upload image: %1",
 			invalidUrl: "Invalid URL. Please provide a valid image URL."
 		}
@@ -37,6 +36,14 @@ module.exports = {
 		const apiEndpoint = "https://nur-s-api.onrender.com/Nurimg";
 		let imageUrl;
 		let imageBuffer;
+		function isValidUrl(string) {
+			try {
+				new URL(string);
+				return true;
+			} catch (_) {
+				return false;
+			}
+		}
 		
 		if (args[0] === "url" && args[1]) {
 			imageUrl = args[1];
@@ -51,8 +58,6 @@ module.exports = {
 		else {
 			return message.reply(getLang("missingImage"));
 		}
-		
-		message.reply(getLang("uploadingImage"));
 		
 		try {
 			const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
@@ -72,24 +77,13 @@ module.exports = {
 			
 			if (uploadResponse.data && uploadResponse.data.success) {
 				const result = uploadResponse.data.data;
-				const imageUrl = result.url_viewer || result.url;
 				const directUrl = result.image?.url || result.display_url;
-				const deleteUrl = result.delete_url || "Not available";
-				message.reply(getLang("uploadSuccess", imageUrl, directUrl, deleteUrl));
+				message.reply(getLang("uploadSuccess", directUrl));
 			} else {
 				message.reply(getLang("uploadFailed", "Unknown error"));
 			}
 		} catch (error) {
-			console.error("Error uploading to imgbb:", error.message);
 			message.reply(getLang("uploadFailed", error.message));
 		}
 	}
 };
-function isValidUrl(string) {
-	try {
-		new URL(string);
-		return true;
-	} catch (_) {
-		return false;
-	}
-}
