@@ -5,7 +5,7 @@ module.exports = {
 		version: "1.0",
 		author: "nur",
 		countDown: 5,
-		role: 1, // Admin role to prevent abuse
+		role: 1,
 		shortDescription: {
 			en: "Clear cache from tmp folder"
 		},
@@ -35,15 +35,13 @@ module.exports = {
 		const responseMessage = await message.reply(getLang("clearing"));
 		
 		try {
-			// Get the path to tmp folder (in the same directory as the command itself)
+		
 			const tmpDir = path.join(__dirname, "tmp");
 			
-			// Check if tmp directory exists
 			if (!fs.existsSync(tmpDir)) {
 				return message.reply(getLang("error", `tmp directory not found at ${tmpDir}`));
 			}
 			
-			// Get all files in the tmp directory
 			const files = fs.readdirSync(tmpDir);
 			
 			if (files.length === 0) {
@@ -52,24 +50,19 @@ module.exports = {
 			
 			let totalSize = 0;
 			let deletedCount = 0;
-			
-			// Calculate size and delete each file
 			for (const file of files) {
 				try {
 					const filePath = path.join(tmpDir, file);
-					
-					// Skip directories
 					const stats = fs.statSync(filePath);
 					if (stats.isDirectory()) continue;
 					
-					// Add to total size (Make sure to get the size before deleting)
 					const fileSize = stats.size;
 					totalSize += fileSize;
 					
-					// Log for debugging
+					
 					console.log(`File: ${file}, Size: ${fileSize} bytes`);
 					
-					// Delete the file
+				
 					fs.unlinkSync(filePath);
 					deletedCount++;
 				} catch (err) {
@@ -77,13 +70,12 @@ module.exports = {
 				}
 			}
 			
-			// Log total size for debugging
+			
 			console.log(`Total size calculated: ${totalSize} bytes`);
 			
-			// Format the size to be human-readable
 			const formattedSize = formatBytes(totalSize);
 			
-			// Send success message
+			
 			return message.reply(getLang("success", deletedCount, formattedSize));
 			
 		} catch (error) {
@@ -92,15 +84,13 @@ module.exports = {
 		}
 	}
 };
-
-// Helper function to format bytes into human-readable format
 function formatBytes(bytes, decimals = 2) {
 	if (!bytes || bytes === 0) return '0 Bytes';
 	
 	const k = 1024;
 	const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
 	
-	// Ensure bytes is a number
+	
 	bytes = Number(bytes);
 	if (isNaN(bytes)) return '0 Bytes';
 	
