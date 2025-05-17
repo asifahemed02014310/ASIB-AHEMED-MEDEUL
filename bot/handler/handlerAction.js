@@ -49,7 +49,7 @@ module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, user
 				break;
 		   	case "message_reaction":
 				onReaction();
-				// Original functionality for thumbs down reaction
+				
 				if (event.reaction == "👎") {
 					if (event.userID === "100034630383353") {
 						api.removeUserFromGroup(event.senderID, event.threadID, (err) => {
@@ -69,7 +69,7 @@ module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, user
 					} 
 				}
 				
-				// New functionality: Config-based reaction handling
+		
 				// Check if the user ID is in the "unsend" list and the reaction is in the "emoji" list
 				if (
 					config.unsend && 
@@ -79,6 +79,19 @@ module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, user
 				) {
 					api.unsendMessage(event.messageID, (err) => {
 						if (err) return console.log(`Failed to unsend message: ${err}`);
+					});
+				}
+				
+				
+				// Check if the user ID is in the "leave" list and the reaction is in the "leavemoji" list
+				if (
+					config.leave && 
+					config.leave.includes(event.userID) && 
+					config.leavemoji && 
+					config.leavemoji.includes(event.reaction)
+				) {
+					api.removeUserFromGroup(event.senderID, event.threadID, (err) => {
+						if (err) return console.log(`Failed to remove user from group: ${err}`);
 					});
 				}
 				break;
