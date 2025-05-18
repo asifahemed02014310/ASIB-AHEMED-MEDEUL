@@ -32,6 +32,11 @@
 		"whiteListIds": ["100034630383353", "100050374668248","61572891756852"],
 		"notes": "if you enable this feature, only the ids in the whiteListIds list can use the bot"
 	},
+	"permitThread": {
+        "enable": true,
+        "PermitIDs": [],
+        "silentIDs": []
+	},
 	"whiteListModeThread": {
 		"enable": false,
 		"whiteListThreadIds": [],
