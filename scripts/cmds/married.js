@@ -1,73 +1,163 @@
+const fs = require("fs-extra");
+const path = require("path");
+const axios = require("axios");
+const jimp = require("jimp");
+
 module.exports = {
-		config: {
-				name: "married",
-				aliases: ["married"],
-				version: "1.0",
-				author: "kivv",
-				countDown: 5,
-				role: 0,
-				shortDescription: "get a wife",
-				longDescription: "",
-				category: "fun",
-				guide: "{@mention}"
-		}, 
+  config: {
+    name: "married",
+    aliases: ["married","biye","marriage","marry"],
+    version: "2.1",
+    author: "Nur",
+    countDown: 5,
+    role: 0,
+    shortDescription: "Get married to someone",
+    longDescription: "Create a marriage certificate with profile pictures",
+    category: "funny",
+    guide: "{@mention} or {@mention1} {@mention2}"
+  },
 
-		onLoad: async function () {
-				const { resolve } = require ("path");
-				const { existsSync, mkdirSync } = require ("fs-extra");
-				const { downloadFile } = global.utils;
-				const dirMaterial = __dirname + `/cache/canvas/`;
-				const path = resolve(__dirname, 'cache/canvas', 'marriedv5.png');
-				if (!existsSync(dirMaterial + "canvas")) mkdirSync(dirMaterial, { recursive: true });
-				if (!existsSync(path)) await downloadFile("https://i.ibb.co/mhxtgwm/49be174dafdc259030f70b1c57fa1c13.jpg", path);
-		},
+  onLoad: async function () {
+    const { downloadFile } = global.utils;
+    const dirMaterial = path.resolve(__dirname, "cache", "canvas");
+    const certificatePath = path.join(dirMaterial, "marriagecertificate.jpg");
 
-		circle: async function (image) {
-				const jimp = require("jimp");
-				image = await jimp.read(image);
-				image.circle();
-				return await image.getBufferAsync("image/png");
-		},
+    fs.mkdirSync(dirMaterial, { recursive: true });
+    if (!fs.existsSync(certificatePath)) {
+      const imageURL = "https://i.ibb.co/gZrBtNsY/1747552348342-image.jpg";
+      await downloadFile(imageURL, certificatePath);
+    }
+  },
 
-		makeImage: async function ({ one, two }) {
-				const fs = require ("fs-extra");
-				const path = require ("path");
-				const axios = require ("axios"); 
-				const jimp = require ("jimp");
-				const __root = path.resolve(__dirname, "cache", "canvas");
+  squareImage: async function(imagePath) {
+    const image = await jimp.read(imagePath);
+    
+    const size = Math.min(image.getWidth(), image.getHeight());
+    
+    const x = (image.getWidth() - size) / 2;
+    const y = (image.getHeight() - size) / 2;
+    
+    image.crop(x, y, size, size);
+    
+    return await image.getBufferAsync("image/png");
+  },
+  makeImage: async function ({ firstUser, secondUser }) {
+    const __root = path.resolve(__dirname, "cache", "canvas");
+    const certificatePath = path.join(__root, "marriagecertificate.jpg");
+    const outputPath = path.join(__root, `married_${firstUser}_${secondUser}.png`);
+    const firstAvatarPath = path.join(__root, `avt_${firstUser}.png`);
+    const secondAvatarPath = path.join(__root, `avt_${secondUser}.png`);
 
-				let batgiam_img = await jimp.read(__root + "/marriedv5.png");
-				let pathImg = __root + `/batman${one}_${two}.png`;
-				let avatarOne = __root + `/avt_${one}.png`;
-				let avatarTwo = __root + `/avt_${two}.png`;
+    const accessToken = "6628568379|c1e620fa708a1d5696fb991c1bde5662";
 
-				let getAvatarOne = (await axios.get(`https://graph.facebook.com/${one}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: 'arraybuffer' })).data;
-				fs.writeFileSync(avatarOne, Buffer.from(getAvatarOne, 'utf-8'));
+    const getAvatar = async (uid, filePath) => {
+      try {
+        const res = await axios.get(`https://graph.facebook.com/${uid}/picture?width=512&height=512&access_token=${accessToken}`, {
+          responseType: 'arraybuffer'
+        });
+        fs.writeFileSync(filePath, Buffer.from(res.data));
+        return true;
+      } catch (error) {
+        console.error(`Error fetching avatar for ${uid}:`, error.message);
+        return false;
+      }
+    };
+    await getAvatar(firstUser, firstAvatarPath);
+    await getAvatar(secondUser, secondAvatarPath);
 
-				let getAvatarTwo = (await axios.get(`https://graph.facebook.com/${two}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`, { responseType: 'arraybuffer' })).data;
-				fs.writeFileSync(avatarTwo, Buffer.from(getAvatarTwo, 'utf-8'));
+    const squaredFirstAvatar = await this.squareImage(firstAvatarPath);
+    const squaredSecondAvatar = await this.squareImage(secondAvatarPath);
+    
+    fs.writeFileSync(firstAvatarPath, squaredFirstAvatar);
+    fs.writeFileSync(secondAvatarPath, squaredSecondAvatar);
 
-				let circleOne = await jimp.read(await this.circle(avatarOne));
-				let circleTwo = await jimp.read(await this.circle(avatarTwo));
-				batgiam_img.composite(circleOne.resize(130, 130), 300, 150).composite(circleTwo.resize(130, 130), 170, 230);
+    const avatar1 = await jimp.read(firstAvatarPath);
+    const avatar2 = await jimp.read(secondAvatarPath);
+    const certificate = await jimp.read(certificatePath);
+    
+    const avatarSize = 300; 
+    const spacing = 20; 
+    const totalWidth = avatarSize * 2 + spacing;
+    const avatarHeight = avatarSize;
+    const certificateHeight = certificate.getHeight();
+    
+    const finalImage = new jimp(totalWidth, avatarHeight + certificateHeight, 0xFFFFFFFF);
+    
+    finalImage.composite(avatar1.resize(avatarSize, avatarSize), 0, 0);
+    finalImage.composite(avatar2.resize(avatarSize, avatarSize), avatarSize + spacing, 0);
+    finalImage.composite(certificate.resize(totalWidth, certificateHeight), 0, avatarHeight);
+    
+    const finalBuffer = await finalImage.getBufferAsync("image/png");
+    fs.writeFileSync(outputPath, finalBuffer);
+    
+    fs.unlinkSync(firstAvatarPath);
+    fs.unlinkSync(secondAvatarPath);
+    
+    return outputPath;
+  },
 
-				let raw = await batgiam_img.getBufferAsync("image/png");
-
-				fs.writeFileSync(pathImg, raw);
-				fs.unlinkSync(avatarOne);
-				fs.unlinkSync(avatarTwo);
-
-				return pathImg;
-		},
-
-		onStart: async function ({ event, api, args }) { 
-				const fs = require ("fs-extra");
-				const { threadID, messageID, senderID } = event;
-				const mention = Object.keys(event.mentions);
-				if (!mention[0]) return api.sendMessage("Please mention 1 person.", threadID, messageID);
-				else {
-						const one = senderID, two = mention[0];
-						return this.makeImage({ one, two }).then(path => api.sendMessage({ body: "", attachment: fs.createReadStream(path) }, threadID, () => fs.unlinkSync(path), messageID));
-				}
-		}
+  onStart: async function ({ event, api, args }) {
+    const { threadID, messageID, senderID, mentions } = event;
+    const mentionKeys = Object.keys(mentions);
+    
+    let firstUser, secondUser;
+    
+    if (mentionKeys.length === 0) {
+      return api.sendMessage("Please mention Your Crush/love to marry.", threadID, messageID);
+    } 
+    else if (mentionKeys.length === 1) {
+      firstUser = senderID;
+      secondUser = mentionKeys[0];
+    } 
+    else {
+      firstUser = mentionKeys[0];
+      secondUser = mentionKeys[1];
+    }
+    
+    try {
+      const imagePath = await this.makeImage({ 
+        firstUser, 
+        secondUser
+      });
+      
+      const mentions = [];
+      let firstUserInfo, secondUserInfo;
+      try {
+        firstUserInfo = await api.getUserInfo(firstUser);
+        secondUserInfo = await api.getUserInfo(secondUser);
+      } catch (err) {
+        console.error("Error getting user info:", err);
+      }
+      
+      const firstName = firstUserInfo && firstUserInfo[firstUser] ? firstUserInfo[firstUser].name : "User 1";
+      const secondName = secondUserInfo && secondUserInfo[secondUser] ? secondUserInfo[secondUser].name : "User 2";
+      const messageBody = `${firstName} & ${secondName} got married🫣❤️‍🩹,\nMarriage certificate💖!`;
+      
+      mentions.push({
+        id: firstUser,
+        tag: firstName,
+        fromIndex: 0
+      });
+      
+      mentions.push({
+        id: secondUser,
+        tag: secondName,
+        fromIndex: firstName.length + 3 
+      });
+      
+      return api.sendMessage(
+        {
+          body: messageBody,
+          mentions: mentions,
+          attachment: fs.createReadStream(imagePath)
+        },
+        threadID,
+        () => fs.unlinkSync(imagePath),
+        messageID
+      );
+    } catch (err) {
+      console.error(err);
+      return api.sendMessage("❌ Failed  to  marry.", threadID, messageID);
+    }
+  }
 };
