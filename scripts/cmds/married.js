@@ -6,16 +6,21 @@ const jimp = require("jimp");
 module.exports = {
   config: {
     name: "married",
-    aliases: ["married","biye","marriage","marry"],
+    aliases: ["biya","biye","marriage","marry"],
     version: "2.1",
     author: "Nur",
     countDown: 5,
     role: 0,
-    shortDescription: "Get married to someone",
-    longDescription: "Create a marriage certificate with profile pictures",
-    category: "funny",
-    guide: "{@mention} or {@mention1} {@mention2}"
-  },
+    shortDescription: {
+  en: "Get married to someone"
+},
+longDescription: {
+  en: "Create a marriage certificate with profile pictures"
+},
+category: "funny",
+guide: {
+  en: "{@mention} or {@mention1} {@mention2}"
+},
 
   onLoad: async function () {
     const { downloadFile } = global.utils;
