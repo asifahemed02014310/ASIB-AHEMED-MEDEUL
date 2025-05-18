@@ -20,7 +20,8 @@ longDescription: {
 category: "funny",
 guide: {
   en: "{@mention} or {@mention1} {@mention2}"
-},
+}
+  },
 
   onLoad: async function () {
     const { downloadFile } = global.utils;
