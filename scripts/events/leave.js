@@ -23,9 +23,9 @@ module.exports = {
 			session2: "𝙉𝙤𝙤𝙣",
 			session3: "𝘼𝙛𝙩𝙚𝙧𝙣𝙤𝙤𝙣",
 			session4: "𝙀𝙫𝙚𝙣𝙞𝙣𝙜",
-			leaveType1: "𝗟𝗲𝗳𝘁 নিছে",
-			leaveType2: "কে 𝗞𝗶𝗰𝗸 দিছে",
-			defaultLeaveMessage: "সাধুবাদ {userName}🐸\nযা ভাগ শালা {userName} 😂\nগ্রুপে থাকার যোগ্যতা নাই দেখে {userName} {type} 🐸"
+			leaveType1: "𝗟𝗲𝗳𝘁😺",
+			leaveType2: "Got a 𝗞𝗶𝗰𝗸😂",
+			defaultLeaveMessage: " {userName} {type}"
 		}
 	},
 
