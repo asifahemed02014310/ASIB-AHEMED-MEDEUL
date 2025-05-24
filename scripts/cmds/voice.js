@@ -1,4 +1,4 @@
-*cmd install voice.js const axios = require("axios");
+const axios = require("axios");
 const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
