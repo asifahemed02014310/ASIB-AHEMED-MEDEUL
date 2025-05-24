@@ -1,4 +1,4 @@
-const axios = require("axios");
+*cmd install voice.js const axios = require("axios");
 const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
@@ -32,7 +32,7 @@ const connectToDatabase = async () => {
       url: { type: String, required: true },
       uploadedBy: { type: String, required: true },
       fileSize: { type: Number, default: 0 },
-      duration: { type: Number, default: 0 },
+      keywords: [{ type: String }], // Keywords that trigger this voice
       createdAt: { type: Date, default: Date.now }
     });
     
@@ -40,7 +40,7 @@ const connectToDatabase = async () => {
       threadID: { type: String, required: true, unique: true },
       voiceMode: { type: Boolean, default: false },
       defaultVoice: { type: String, default: null },
-      autoUpload: { type: Boolean, default: true },
+      defaultKeywords: [{ type: String }], // Keywords for default voice
       createdAt: { type: Date, default: Date.now },
       updatedAt: { type: Date, default: Date.now }
     });
@@ -95,6 +95,44 @@ const uploadToCatbox = async (filepath) => {
   }
 };
 
+// Send voice clip as attachment
+const sendVoiceClip = async (api, threadID, voiceUrl, voiceName = "") => {
+  try {
+    // Download voice file temporarily
+    const tempDir = path.join(__dirname, "temp");
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    const filename = `temp_voice_${Date.now()}.mp3`;
+    const filepath = path.join(tempDir, filename);
+    
+    await downloadFile(voiceUrl, filepath);
+    
+    // Send as voice attachment
+    const attachment = fs.createReadStream(filepath);
+    await api.sendMessage({
+      body: voiceName ? `🎵 ${voiceName}` : "",
+      attachment: attachment
+    }, threadID);
+    
+    // Clean up temp file
+    setTimeout(() => {
+      try {
+        if (fs.existsSync(filepath)) {
+          fs.unlinkSync(filepath);
+        }
+      } catch (e) {
+        console.error('Cleanup error:', e);
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Voice send error:', error);
+    throw error;
+  }
+};
+
 // Get file info
 const getFileInfo = (filepath) => {
   try {
@@ -128,28 +166,30 @@ const cleanupFile = (filepath) => {
   }
 };
 
+// Animated loading messages
+const loadingAnimation = ["⏳ Adding", "⏳ Adding.", "⏳ Adding..", "⏳ Adding..."];
+let animationIndex = 0;
+
 module.exports = {
   config: {
     name: "voice",
-    version: "3.0",
+    version: "3.1",
     author: "nur",
     countDown: 5,
     role: 0,
-    shortDescription: { en: "Advanced voice clip manager with Catbox upload" },
+    shortDescription: { en: "Advanced voice clip manager with auto-response" },
     description: {
-      en: "Manage voice clips with automatic Catbox upload and keyword detection"
+      en: "Manage voice clips with automatic voice responses and keyword detection"
     },
     category: "media",
     guide: {
       en: [
-        `{prefix}voice add <name> => Reply to a voice message to upload and save`,
+        `{prefix}voice add <name> => Reply to a voice message to save`,
         `{prefix}voice remove <name> => Remove a voice clip`,
         `{prefix}voice list => List all saved voice clips`,
-        `{prefix}voice <name> => Get voice clip by name`,
+        `{prefix}voice <name> => Send voice clip by name`,
         `{prefix}voice => Send a random voice clip`,
-        `{prefix}voice on => Enable keyword detection mode`,
-        `{prefix}voice off => Disable keyword detection mode`,
-        `{prefix}voice set <name> => Set default voice for auto-send`,
+        `{prefix}voice set <name> <keywords> => Set voice to respond to keywords`,
         `{prefix}voice unset => Remove default voice setting`,
         `{prefix}voice status => Show current settings`
       ].join("\n")
@@ -161,26 +201,20 @@ module.exports = {
       noReply: "❌ Please reply to a message containing a voice clip.",
       noName: "❌ Please provide a name after 'add'.",
       noVoiceAttachment: "❌ Reply must contain a voice message or audio attachment.",
-      adding: "⏳ Processing voice clip...",
-      downloading: "📥 Downloading voice file...",
-      uploading: "☁️ Uploading to Catbox...",
-      added: "✅ Voice clip '%1' saved successfully!\n📁 Size: %2\n🔗 URL: %3",
+      adding: "⏳ Adding",
+      addingDone: "✅ Voice saved: **%1**",
       exists: "⚠️ A clip with name '%1' already exists. Use 'remove' first.",
       removed: "✅ Voice clip '%1' removed successfully!",
       notFound: "❌ No voice clip found with name '%1'.",
       listEmpty: "📝 No voice clips found in database.",
       listHeader: "🎵 Saved Voice Clips (%1 total):",
       listItem: "%2. **%1** (%3)",
-      voiceModeOn: "🔊 Voice mode enabled! Bot will respond to keywords automatically.",
-      voiceModeOff: "🔇 Voice mode disabled.",
-      voiceModeStatus: "🎵 Voice Mode: %1 | Default Voice: %2 | Auto Upload: %3",
-      defaultVoiceSet: "🎯 Default voice set to: %1",
-      defaultVoiceUnset: "🔄 Default voice setting removed.",
-      randomVoice: "🎲 Random voice: **%1**",
+      voiceSet: "🎯 Voice '%1' set to respond to keywords: %2",
+      voiceUnset: "🔄 Default voice setting removed.",
+      noKeywords: "❌ Please provide keywords after the voice name.",
       noVoicesAvailable: "❌ No voice clips available.",
-      uploadError: "❌ Failed to upload voice clip: %1",
-      downloadError: "❌ Failed to download voice file: %1",
-      processingError: "❌ Error processing voice clip: %1"
+      processingError: "❌ Error: %1",
+      statusInfo: "🎵 **Voice Settings**\n📊 Total voices: %1\n🎯 Default voice: %2\n🔤 Keywords: %3"
     }
   },
 
@@ -217,9 +251,19 @@ module.exports = {
           const existing = await Voice.findOne({ name });
           if (existing) return message.reply(getLang("exists", name));
 
-          // Send initial processing message
-          message.reply(getLang("adding"));
+          // Start animated loading
+          const statusMsg = await message.reply(getLang("adding"));
           
+          // Animate loading message
+          const animationInterval = setInterval(async () => {
+            animationIndex = (animationIndex + 1) % loadingAnimation.length;
+            try {
+              await api.editMessage(loadingAnimation[animationIndex], statusMsg.messageID);
+            } catch (e) {
+              clearInterval(animationInterval);
+            }
+          }, 500);
+
           // Create temp directory if it doesn't exist
           const tempDir = path.join(__dirname, "temp");
           if (!fs.existsSync(tempDir)) {
@@ -227,7 +271,6 @@ module.exports = {
           }
 
           // Download the voice file
-          message.reply(getLang("downloading"));
           const filename = `voice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.mp3`;
           const filepath = path.join(tempDir, filename);
           
@@ -237,7 +280,6 @@ module.exports = {
           const fileInfo = getFileInfo(filepath);
           
           // Upload to Catbox
-          message.reply(getLang("uploading"));
           const catboxUrl = await uploadToCatbox(filepath);
           
           if (!catboxUrl || !catboxUrl.startsWith('http')) {
@@ -249,14 +291,21 @@ module.exports = {
             name, 
             url: catboxUrl, 
             uploadedBy: senderID,
-            fileSize: fileInfo.size
+            fileSize: fileInfo.size,
+            keywords: [name] // Default keyword is the voice name
           });
           await newVoice.save();
           
           // Clean up temp file
           cleanupFile(filepath);
           
-          return message.reply(getLang("added", name, fileInfo.sizeFormatted, catboxUrl));
+          // Stop animation and show success
+          clearInterval(animationInterval);
+          await api.editMessage(getLang("addingDone", name), statusMsg.messageID);
+          
+          // Send the voice clip
+          await sendVoiceClip(api, threadID, catboxUrl, name);
+          
         } catch (err) {
           console.error('Voice add error:', err);
           return message.reply(getLang("processingError", err.message));
@@ -264,7 +313,7 @@ module.exports = {
       }
 
       // Remove a voice clip
-      if (cmd === "remove") {
+      else if (cmd === "remove") {
         const name = args.slice(1).join(" ").trim().toLowerCase();
         if (!name) return message.reply(getLang("noName"));
 
@@ -279,7 +328,7 @@ module.exports = {
       }
 
       // List all clips
-      if (cmd === "list") {
+      else if (cmd === "list") {
         try {
           const voices = await Voice.find({}).lean();
           if (!voices.length) return message.reply(getLang("listEmpty"));
@@ -297,59 +346,69 @@ module.exports = {
         }
       }
 
-      // Show status
-      if (cmd === "status") {
-        const voiceMode = settings.voiceMode ? "ON" : "OFF";
-        const defaultVoice = settings.defaultVoice || "None";
-        const autoUpload = settings.autoUpload ? "ON" : "OFF";
-        return message.reply(getLang("voiceModeStatus", voiceMode, defaultVoice, autoUpload));
-      }
+      // Set voice with keywords for auto-response
+      else if (cmd === "set") {
+        const params = args.slice(1).join(" ").trim();
+        if (!params) return message.reply(getLang("noName"));
+        
+        const parts = params.split(" ");
+        const voiceName = parts[0].toLowerCase();
+        const keywords = parts.slice(1);
+        
+        if (!keywords.length) return message.reply(getLang("noKeywords"));
 
-      // Enable voice mode
-      if (cmd === "on") {
-        settings.voiceMode = true;
-        settings.updatedAt = new Date();
-        await settings.save();
-        return message.reply(getLang("voiceModeOn"));
-      }
+        try {
+          const voice = await Voice.findOne({ name: voiceName });
+          if (!voice) return message.reply(getLang("notFound", voiceName));
 
-      // Disable voice mode
-      if (cmd === "off") {
-        settings.voiceMode = false;
-        settings.updatedAt = new Date();
-        await settings.save();
-        return message.reply(getLang("voiceModeOff"));
-      }
+          // Update settings
+          settings.defaultVoice = voiceName;
+          settings.defaultKeywords = keywords.map(k => k.toLowerCase());
+          settings.updatedAt = new Date();
+          await settings.save();
 
-      // Set default voice
-      if (cmd === "set") {
-        const name = args.slice(1).join(" ").trim().toLowerCase();
-        if (!name) return message.reply(getLang("noName"));
+          // Update voice keywords
+          voice.keywords = [voiceName, ...keywords.map(k => k.toLowerCase())];
+          await voice.save();
 
-        const voice = await Voice.findOne({ name });
-        if (!voice) return message.reply(getLang("notFound", name));
-
-        settings.defaultVoice = name;
-        settings.updatedAt = new Date();
-        await settings.save();
-        return message.reply(getLang("defaultVoiceSet", name));
+          return message.reply(getLang("voiceSet", voiceName, keywords.join(", ")));
+        } catch (err) {
+          console.error('Voice set error:', err);
+          return message.reply(getLang("processingError", err.message));
+        }
       }
 
       // Unset default voice
-      if (cmd === "unset") {
+      else if (cmd === "unset") {
         settings.defaultVoice = null;
+        settings.defaultKeywords = [];
         settings.updatedAt = new Date();
         await settings.save();
-        return message.reply(getLang("defaultVoiceUnset"));
+        return message.reply(getLang("voiceUnset"));
+      }
+
+      // Show status
+      else if (cmd === "status") {
+        try {
+          const totalVoices = await Voice.countDocuments();
+          const defaultVoice = settings.defaultVoice || "None";
+          const keywords = settings.defaultKeywords?.join(", ") || "None";
+          
+          return message.reply(getLang("statusInfo", totalVoices, defaultVoice, keywords));
+        } catch (err) {
+          console.error('Voice status error:', err);
+          return message.reply(getLang("processingError", err.message));
+        }
       }
 
       // Get specific voice by name
-      if (cmd && !["list", "on", "off", "set", "unset", "status"].includes(cmd)) {
+      else if (cmd && !["list", "set", "unset", "status"].includes(cmd)) {
         const name = args.join(" ").toLowerCase();
         try {
           const clip = await Voice.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
           if (!clip) return message.reply(getLang("notFound", name));
-          return message.reply(`🎵 **${clip.name}**\n${clip.url}`);
+          
+          await sendVoiceClip(api, threadID, clip.url, clip.name);
         } catch (err) {
           console.error('Voice get error:', err);
           return message.reply(getLang("processingError", err.message));
@@ -357,13 +416,13 @@ module.exports = {
       }
 
       // Send random voice (no arguments)
-      if (!cmd) {
+      else if (!cmd) {
         try {
           const voices = await Voice.find({}).lean();
           if (!voices.length) return message.reply(getLang("noVoicesAvailable"));
           
           const randomVoice = voices[Math.floor(Math.random() * voices.length)];
-          return message.reply(`${getLang("randomVoice", randomVoice.name)}\n${randomVoice.url}`);
+          await sendVoiceClip(api, threadID, randomVoice.url, randomVoice.name);
         } catch (err) {
           console.error('Voice random error:', err);
           return message.reply(getLang("processingError", err.message));
@@ -375,45 +434,29 @@ module.exports = {
     }
   },
 
-  // Handle keyword detection and default voice
-  onChat: async function ({ event, message }) {
+  // Handle keyword detection for auto-response
+  onChat: async function ({ event, api }) {
     try {
       await connectToDatabase();
       const threadID = event.threadID;
       const messageText = event.body?.toLowerCase() || "";
 
-      // Skip if message is empty or too short
-      if (!messageText || messageText.length < 2) return;
+      // Skip if message is empty, too short, or is a command
+      if (!messageText || messageText.length < 2 || messageText.startsWith('.') || messageText.startsWith('!')) return;
 
       // Get thread settings
       const settings = await VoiceSettings.findOne({ threadID });
-      if (!settings) return;
+      if (!settings || !settings.defaultVoice) return;
 
-      // Check for keyword detection mode
-      if (settings.voiceMode) {
-        const voices = await Voice.find({}).lean();
-        
-        // Sort by name length (longest first) to prioritize more specific matches
-        voices.sort((a, b) => b.name.length - a.name.length);
-        
-        for (const voice of voices) {
-          if (messageText.includes(voice.name.toLowerCase())) {
-            return message.reply(`🎵 *${voice.name}*\n${voice.url}`);
-          }
-        }
-      }
+      // Check if message contains any keywords
+      const hasKeyword = settings.defaultKeywords?.some(keyword => 
+        messageText.includes(keyword.toLowerCase())
+      );
 
-      // Check for default voice trigger (when voice mode is off but default is set)
-      if (!settings.voiceMode && settings.defaultVoice) {
-        // Trigger default voice on specific keywords
-        const triggerWords = ['voice', 'audio', 'sound', 'play'];
-        const shouldTrigger = triggerWords.some(word => messageText.includes(word));
-        
-        if (shouldTrigger) {
-          const defaultVoice = await Voice.findOne({ name: settings.defaultVoice });
-          if (defaultVoice) {
-            return message.reply(`🎯 *${defaultVoice.name}* (default)\n${defaultVoice.url}`);
-          }
+      if (hasKeyword) {
+        const voice = await Voice.findOne({ name: settings.defaultVoice });
+        if (voice) {
+          await sendVoiceClip(api, threadID, voice.url, voice.name);
         }
       }
     } catch (err) {
