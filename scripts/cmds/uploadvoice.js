@@ -6,7 +6,7 @@ const FormData = require("form-data");
 module.exports = {
 	config: {
 		name: "uploadvoice",
-    aliases: ["uv","upv"]
+                aliases: ["uv","upv"],
 		version: "1.1",
 		author: "Nur",
 		countDown: 5,
