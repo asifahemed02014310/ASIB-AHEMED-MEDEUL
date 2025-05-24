@@ -7,12 +7,12 @@ module.exports = {
 		version: '1.14',
 		author: 'NTKhang',
 		countDown: 5,
-		role: 1,
+		role: 0,
 		description: {
 			vi: 'Thêm một phím tắt cho tin nhắn trong nhóm chat của bạn',
 			en: 'Add a shortcut for your message in group chat'
 		},
-		category: 'coustom',
+		category: 'custom',
 		guide: {
 			vi: '   {pn} add <word> => <content>: thêm một phím tắt cho bạn (có thể gửi kèm hoặc phản hồi một tin nhắn có file để thêm tệp đính kèm)'
 				+ '\n   Ví dụ:\n    {pn} add hi => Xin chào mọi người'
@@ -26,8 +26,8 @@ module.exports = {
 				+ '\n   {pn} list start <keyword>: xem danh sách các phím tắt của bạn bắt đầu bằng từ khóa <keyword>'
 				+ '\n   {pn} list end <keyword>: xem danh sách các phím tắt của bạn kết thúc bằng từ khóa <keyword>'
 				+ '\n   {pn} list contain <keyword>: xem danh sách các phím tắt của bạn có chứa từ khóa <keyword>',
-			en: '   {pn} add <word> = <content>: add a shortcut for you (you can send or reply a message with file to add attachment)'
-				+ '\n   Example:\n    {pn} add hi = Hello everyone'
+			en: '   {pn} add <word> => <content>: add a shortcut for you (you can send or reply a message with file to add attachment)'
+				+ '\n   Example:\n    {pn} add hi => Hello everyone'
 				+ '\n'
 				+ '\n   {pn} del <word>: delete a shortcut'
 				+ '\n   Example:\n    {pn} del hi'
@@ -105,7 +105,7 @@ module.exports = {
 				].filter(item => ["photo", 'png', "animated_image", "video", "audio"].includes(item.type));
 
 				let key = split[0];
-				let content = split.slice(1).join('=');
+				let content = split.slice(1).join('=>');
 
 				if (!key || !content && attachments.length === 0)
 					return message.reply(getLang('missingContent'));
@@ -300,4 +300,4 @@ async function createShortcut(key, content, attachments, threadID, senderID) {
 		attachments: await Promise.all(attachmentIDs),
 		author: senderID
 	};
-}
+						}
