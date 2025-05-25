@@ -161,10 +161,10 @@ const cleanupFile = (filepath) => {
 const findMatchingVoice = async (messageText) => {
   try {
     const voices = await Voice.find({}).lean();
-    const words = messageText.toLowerCase().split(/\s+/);
+    const lowerMessageText = messageText.toLowerCase();
     
     for (const voice of voices) {
-      if (words.includes(voice.name.toLowerCase())) {
+      if (lowerMessageText.includes(voice.name.toLowerCase())) {
         return voice;
       }
     }
@@ -172,7 +172,7 @@ const findMatchingVoice = async (messageText) => {
     for (const voice of voices) {
       if (voice.keywords && voice.keywords.length > 0) {
         for (const keyword of voice.keywords) {
-          if (words.includes(keyword.toLowerCase())) {
+          if (lowerMessageText.includes(keyword.toLowerCase())) {
             return voice;
           }
         }
