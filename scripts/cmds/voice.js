@@ -39,10 +39,6 @@ const connectToDatabase = async () => {
     settingsSchema = new mongoose.Schema({
       threadID: { type: String, required: true, unique: true },
       voiceMode: { type: Boolean, default: false },
-      setKeywords: [{ 
-        name: { type: String, required: true },
-        voiceName: { type: String, required: true }
-      }],
       createdAt: { type: Date, default: Date.now },
       updatedAt: { type: Date, default: Date.now }
     });
@@ -162,7 +158,6 @@ const cleanupFile = (filepath) => {
   }
 };
 
-// Check if message contains voice clip keywords (for voice mode)
 const findMatchingVoice = async (messageText) => {
   try {
     const voices = await Voice.find({}).lean();
@@ -191,54 +186,19 @@ const findMatchingVoice = async (messageText) => {
   }
 };
 
-// Check if message contains set keywords (works even when voice mode is off)
-const findSetKeywordMatch = async (messageText, threadID) => {
-  try {
-    const settings = await VoiceSettings.findOne({ threadID });
-    if (!settings) return null;
-    
-    // Initialize setKeywords if it doesn't exist
-    if (!settings.setKeywords) {
-      settings.setKeywords = [];
-      await settings.save();
-      return null;
-    }
-    
-    if (settings.setKeywords.length === 0) {
-      return null;
-    }
-    
-    const words = messageText.toLowerCase().split(/\s+/);
-    
-    for (const setKeyword of settings.setKeywords) {
-      if (setKeyword && setKeyword.name && words.includes(setKeyword.name.toLowerCase())) {
-        const voice = await Voice.findOne({ name: setKeyword.voiceName });
-        if (voice) {
-          return voice;
-        }
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Set keyword matching error:', error);
-    return null;
-  }
-};
-
 const loadingAnimation = ["⏳ Adding", "⏳ Adding.", "⏳ Adding..", "⏳ Adding..."];
 let animationIndex = 0;
 
 module.exports = {
   config: {
     name: "voice",
-    version: "3.3",
+    version: "3.2",
     author: "nur",
-    countDown: 5,
+    countDown: 1,
     role: 0,
-    shortDescription: { en: "Advanced voice clip manager with auto-response and set keywords" },
+    shortDescription: { en: "Advanced voice clip manager with auto-response" },
     description: {
-      en: "Manage voice clips with automatic voice responses and custom keyword triggers"
+      en: "Manage voice clips with automatic voice responses when voice mode is enabled"
     },
     category: "media",
     guide: {
@@ -250,10 +210,6 @@ module.exports = {
         `{prefix}voice => Send a random voice clip`,
         `{prefix}voice on => Enable auto voice response mode`,
         `{prefix}voice off => Disable auto voice response mode`,
-        `{prefix}voice set <keyword> <voice_name> => Set keyword to trigger specific voice`,
-        `{prefix}voice set list => List all set keywords`,
-        `{prefix}voice unset <keyword> => Remove set keyword`,
-        `{prefix}voice reset => Reset all settings`,
         `{prefix}voice status => Show current settings`
       ].join("\n")
     }
@@ -276,17 +232,7 @@ module.exports = {
       voiceModeOff: "🔇 Voice mode disabled! Auto voice responses are now turned off.",
       noVoicesAvailable: "❌ No voice clips available.",
       processingError: "❌ Error: %1",
-      statusInfo: "🎵 **Voice Settings**\n📊 Total voices: %1\n🔊 Voice mode: %2\n🎯 Set keywords: %3",
-      setKeywordAdded: "✅ Set keyword '%1' to trigger voice '%2'",
-      setKeywordExists: "⚠️ Keyword '%1' already exists. Use 'unset' first to replace.",
-      setKeywordRemoved: "✅ Set keyword '%1' removed successfully!",
-      setKeywordNotFound: "❌ No set keyword found with name '%1'.",
-      setListEmpty: "📝 No set keywords found.",
-      setListHeader: "🎯 Set Keywords (%1 total):",
-      setListItem: "%2. *%1* → %3",
-      resetConfirm: "✅ All voice settings have been reset!",
-      setUsage: "❌ Usage: voice set <keyword> <voice_name>",
-      voiceNotFoundForSet: "❌ Voice clip '%1' not found. Please add it first."
+      statusInfo: "🎵 **Voice Settings**\n📊 Total voices: %1\n🔊 Voice mode: %2"
     }
   },
 
@@ -300,11 +246,7 @@ module.exports = {
       const senderID = event.senderID;
       let settings = await VoiceSettings.findOne({ threadID });
       if (!settings) {
-        settings = new VoiceSettings({ threadID, setKeywords: [] });
-        await settings.save();
-      } else if (!settings.setKeywords) {
-        // Initialize setKeywords for existing records
-        settings.setKeywords = [];
+        settings = new VoiceSettings({ threadID });
         await settings.save();
       }
 
@@ -404,116 +346,6 @@ module.exports = {
         }
       }
 
-      else if (cmd === "set") {
-        const subCmd = args[1] && args[1].toLowerCase();
-        
-        if (subCmd === "list") {
-          try {
-            // Ensure setKeywords exists
-            if (!settings.setKeywords) {
-              settings.setKeywords = [];
-              await settings.save();
-            }
-            
-            if (settings.setKeywords.length === 0) {
-              return message.reply(getLang("setListEmpty"));
-            }
-            
-            let text = getLang("setListHeader", settings.setKeywords.length) + "\n\n";
-            settings.setKeywords.forEach((item, index) => {
-              if (item && item.name && item.voiceName) {
-                text += getLang("setListItem", item.name, index + 1, item.voiceName) + "\n";
-              }
-            });
-            
-            return message.reply(text);
-          } catch (err) {
-            console.error('Voice set list error:', err);
-            return message.reply(getLang("processingError", err.message));
-          }
-        } else {
-          const keyword = args[1];
-          const voiceName = args.slice(2).join(" ").trim().toLowerCase();
-          
-          if (!keyword || !voiceName) {
-            return message.reply(getLang("setUsage"));
-          }
-          
-          try {
-            // Ensure setKeywords exists
-            if (!settings.setKeywords) {
-              settings.setKeywords = [];
-              await settings.save();
-            }
-            
-            // Check if voice exists
-            const voice = await Voice.findOne({ name: voiceName });
-            if (!voice) {
-              return message.reply(getLang("voiceNotFoundForSet", voiceName));
-            }
-            
-            // Check if keyword already exists
-            const existingKeyword = settings.setKeywords.find(k => k && k.name && k.name.toLowerCase() === keyword.toLowerCase());
-            if (existingKeyword) {
-              return message.reply(getLang("setKeywordExists", keyword));
-            }
-            
-            // Add new set keyword
-            settings.setKeywords.push({ name: keyword.toLowerCase(), voiceName: voiceName });
-            settings.updatedAt = new Date();
-            await settings.save();
-            
-            return message.reply(getLang("setKeywordAdded", keyword, voiceName));
-          } catch (err) {
-            console.error('Voice set error:', err);
-            return message.reply(getLang("processingError", err.message));
-          }
-        }
-      }
-
-      else if (cmd === "unset") {
-        const keyword = args.slice(1).join(" ").trim().toLowerCase();
-        if (!keyword) {
-          return message.reply("❌ Please provide a keyword to unset.");
-        }
-        
-        try {
-          // Ensure setKeywords exists
-          if (!settings.setKeywords) {
-            settings.setKeywords = [];
-            await settings.save();
-          }
-          
-          const keywordIndex = settings.setKeywords.findIndex(k => k && k.name && k.name.toLowerCase() === keyword);
-          if (keywordIndex === -1) {
-            return message.reply(getLang("setKeywordNotFound", keyword));
-          }
-          
-          settings.setKeywords.splice(keywordIndex, 1);
-          settings.updatedAt = new Date();
-          await settings.save();
-          
-          return message.reply(getLang("setKeywordRemoved", keyword));
-        } catch (err) {
-          console.error('Voice unset error:', err);
-          return message.reply(getLang("processingError", err.message));
-        }
-      }
-
-      else if (cmd === "reset") {
-        try {
-          settings.voiceMode = false;
-          settings.setKeywords = [];
-          settings.updatedAt = new Date();
-          await settings.save();
-          
-          return message.reply(getLang("resetConfirm"));
-        } catch (err) {
-          console.error('Voice reset error:', err);
-          return message.reply(getLang("processingError", err.message));
-        }
-      }
-
       else if (cmd === "on") {
         settings.voiceMode = true;
         settings.updatedAt = new Date();
@@ -532,16 +364,15 @@ module.exports = {
         try {
           const totalVoices = await Voice.countDocuments();
           const voiceMode = settings.voiceMode ? "Enabled" : "Disabled";
-          const setKeywordsCount = (settings.setKeywords && Array.isArray(settings.setKeywords)) ? settings.setKeywords.length : 0;
           
-          return message.reply(getLang("statusInfo", totalVoices, voiceMode, setKeywordsCount));
+          return message.reply(getLang("statusInfo", totalVoices, voiceMode));
         } catch (err) {
           console.error('Voice status error:', err);
           return message.reply(getLang("processingError", err.message));
         }
       }
 
-      else if (cmd && !["list", "on", "off", "status", "set", "unset", "reset"].includes(cmd)) {
+      else if (cmd && !["list", "on", "off", "status"].includes(cmd)) {
         const name = args.join(" ").toLowerCase();
         try {
           const clip = await Voice.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
@@ -571,35 +402,24 @@ module.exports = {
       return message.reply(getLang("processingError", error.message));
     }
   },
-    onChat: async function ({ event, api }) {
+
+  onChat: async function ({ event, api }) {
     try {
       await connectToDatabase();
       const threadID = event.threadID;
       const messageText = event.body?.toLowerCase() || "";
 
-      // Skip if message is empty, too short, or starts with command prefixes
       if (!messageText || messageText.length < 2 || messageText.startsWith('.') || messageText.startsWith('!')) return;
 
       const settings = await VoiceSettings.findOne({ threadID });
-      if (!settings) return;
+      if (!settings || !settings.voiceMode) return;
 
-      // First check for set keywords (works regardless of voice mode)
-      const setKeywordMatch = await findSetKeywordMatch(messageText, threadID);
-      if (setKeywordMatch) {
-        await sendVoiceClip(api, threadID, setKeywordMatch.url, setKeywordMatch.name);
-        return;
-      }
-
-      // Then check voice mode for general keyword matching
-      if (settings.voiceMode) {
-        const matchingVoice = await findMatchingVoice(messageText);
-        if (matchingVoice) {
-          await sendVoiceClip(api, threadID, matchingVoice.url, matchingVoice.name);
-        }
+      const matchingVoice = await findMatchingVoice(messageText);
+      if (matchingVoice) {
+        await sendVoiceClip(api, threadID, matchingVoice.url, matchingVoice.name);
       }
     } catch (err) {
       console.error("Voice onChat error:", err);
     }
   }
 };
-                                      
