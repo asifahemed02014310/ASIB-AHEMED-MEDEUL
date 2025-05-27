@@ -2,7 +2,7 @@ const axios = require("axios");
 
 module.exports = {
   config: {
-    name: "yo",
+    name: "sara",
     version: "1.0",
     author: "Custom by You",
     countDown: 0,
@@ -19,7 +19,7 @@ module.exports = {
     const message = event.body?.toLowerCase().trim();
     if (!message) return;
 
-    const triggerWords = ["yo", "mc", "jaura", "gali", "mal", "magi"];
+    const triggerWords = ["yo", "mc", "sara", "gali", "mal", "magi"];
     if (!triggerWords.includes(message)) return;
 
     try {
