@@ -259,7 +259,7 @@ module.exports = {
       notFound: "❌ No voice clip found with name '%1'.",
       listEmpty: "📝 No voice clips found in database.",
       listHeader: "🎵 %1 Voice Clips:",
-      listItem: "%2. *%1* (%3)",
+      listItem: "%2. *%1*",
       voiceModeOn: "🔊 Voice mode enabled!\nBot will now auto response with keyword ",
       voiceModeOff: "🔇 Voice mode disabled!",
       noVoicesAvailable: "❌ No voice clips available.",
