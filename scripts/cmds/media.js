@@ -1,41 +1,70 @@
 const axios = require("axios");
 const mongoose = require("mongoose");
+const FormData = require("form-data");
 
-// MongoDB connection string - replace with your actual MongoDB URI
-const MONGODB_URI = "mongodb+srv://username:password@cluster.mongodb.net/mediaDB";
+const { MONGODB_URI } = require("./DB/Mongodb.json");
 
-// Create the MongoDB schema for media
+const separateMongoose = require('mongoose');
+
+let mediaConnection;
 let mediaSchema;
+let settingsSchema;
 let Media;
+let MediaSettings;
 
-// Connect to MongoDB and initialize model
 const connectToDatabase = async () => {
   try {
-    if (!mongoose.connection.readyState) {
-      await mongoose.connect(MONGODB_URI);
-      console.log("Connected to MongoDB for media storage");
+    if (!mediaConnection || mediaConnection.readyState !== 1) {
+      mediaConnection = separateMongoose.createConnection(MONGODB_URI, { 
+        useNewUrlParser: true, 
+        useUnifiedTopology: true
+      });
+      
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Database connection timeout'));
+        }, 10000);
+        
+        mediaConnection.once('open', () => {
+          clearTimeout(timeout);
+          console.log('Media database connected successfully to:', MONGODB_URI.replace(/\/\/.*@/, '//***:***@'));
+          resolve();
+        });
+        
+        mediaConnection.once('error', (error) => {
+          clearTimeout(timeout);
+          console.error('Media database connection failed:', error);
+          reject(error);
+        });
+      });
     }
     
-    // Define schema if not already defined
+    // Define schemas if not already defined
     if (!mediaSchema) {
-      mediaSchema = new mongoose.Schema({
+      mediaSchema = new separateMongoose.Schema({
         url: { type: String, required: true },
-        name: { type: String, required: true },
+        name: { type: String, required: true, unique: true },
         uploadedBy: { type: String, required: true },
+        fileSize: { type: Number, default: 0 },
+        keywords: [{ type: String }],
         createdAt: { type: Date, default: Date.now }
       });
       
-      try {
-        Media = mongoose.model("Media");
-      } catch (e) {
-        Media = mongoose.model("Media", mediaSchema);
-      }
+      settingsSchema = new separateMongoose.Schema({
+        threadID: { type: String, required: true, unique: true },
+        usedMedia: [{ type: String }], // Array of media URLs that have been used
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now }
+      });
+      
+      Media = mediaConnection.model("MediaClips", mediaSchema);
+      MediaSettings = mediaConnection.model("MediaSettings", settingsSchema);
     }
     
     return true;
   } catch (error) {
-    console.error("Failed to connect to MongoDB:", error);
-    return false;
+    console.error('Media database connection error:', error);
+    throw error;
   }
 };
 
@@ -43,13 +72,12 @@ const connectToDatabase = async () => {
 const uploadToImgur = async (url) => {
   try {
     // Download the media
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const response = await axios.get(url, { 
+      responseType: 'arraybuffer',
+      timeout: 30000
+    });
     
-    // For Node.js environment, use FormData from form-data package
-    const FormData = require('form-data');
     const formData = new FormData();
-    
-    // Append the buffer directly
     formData.append('image', Buffer.from(response.data), {
       filename: 'image.jpg',
       contentType: 'image/jpeg',
@@ -59,262 +87,385 @@ const uploadToImgur = async (url) => {
     const imgurResponse = await axios.post("https://nur-s-api.onrender.com/Nurimg", formData, {
       headers: {
         ...formData.getHeaders()
-      }
+      },
+      timeout: 60000
     });
     
     if (imgurResponse.data && imgurResponse.data.success) {
-      return imgurResponse.data.data.url; // Return the direct image URL
+      return imgurResponse.data.data.url;
     } else {
-      throw new Error("Upload failed");
+      throw new Error("Upload failed: Invalid response from Imgur API");
     }
   } catch (error) {
-    console.error("Error uploading to Imgur:", error);
-    throw error;
+    console.error("Error uploading to Imgur:", error.message);
+    throw new Error(`Upload failed: ${error.message}`);
   }
 };
+
+// Get file size info
+const getFileSize = (buffer) => {
+  const bytes = buffer.length;
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Get or create settings for thread
+const getThreadSettings = async (threadID) => {
+  let settings = await MediaSettings.findOne({ threadID });
+  if (!settings) {
+    settings = new MediaSettings({ threadID, usedMedia: [] });
+    await settings.save();
+  }
+  return settings;
+};
+
+const loadingAnimation = ["⏳ Uploading", "⏳ Uploading.", "⏳ Uploading..", "⏳ Uploading..."];
+let animationIndex = 0;
 
 module.exports = {
   config: {
     name: "media",
     aliases: ["exposs", "joss", "hot"],
-    version: "3.0",
-    author: "Alamin + ChatGPT + Claude",
+    version: "4.1",
+    author: "Nur",
     role: 0,
-    shortDescription: { en: "Manage images with MongoDB" },
+    countDown: 1,
+    shortDescription: { en: "Advanced image manager with MongoDB" },
+    description: { en: "Manage images with automatic no-repeat random selection" },
     category: "media",
     guide: {
-      en: `{prefix}media => Send random image (no repeat)
-{prefix}media add <name> => Reply to an image with a name to add instantly
-{prefix}media remove => Reply to an image to remove
-{prefix}media list => Show all images with numbers
-Reply with number after list to get that image
-{prefix}media <name> => Send image by name`
+      en: [
+        `{prefix}media => Send random image (no repeat until all used)`,
+        `{prefix}media add <name> => Reply to an image with a name to add`,
+        `{prefix}media remove <name> => Remove image by name`,
+        `{prefix}media list [page] => Show all images with pagination`,
+        `{prefix}media <name> => Send image by name (exact or similar match)`,
+        `Reply to list message with number => Send specific image by number`
+      ].join("\n")
     }
   },
 
-  onStart: async function ({ event, message, args, api }) {
-    // Connect to MongoDB
-    const dbConnected = await connectToDatabase();
-    if (!dbConnected) {
-      return message.reply("⚠️ Failed to connect to database. Please try again later.");
+  langs: {
+    en: {
+      noReply: "❗ Reply to an image to add it.",
+      noImageAttachment: "❗ Only images are supported.",
+      noName: "❗ Please provide a name after 'add'.",
+      exists: "⚠️ Image with name '%1' already exists.",
+      adding: "⏳ Uploading image to storage...",
+      addSuccess: "✅ Image saved as '%1' successfully!",
+      removeSuccess: "✅ Image '%1' removed successfully.",
+      notFound: "❌ Image '%1' not found.",
+      listEmpty: "❌ No images found in database.",
+      listHeader: "📄 Image List (Page %1/%2) - Total: %3 images:\n\n",
+      listItem: "%1. %2",
+      listFooter: "\n\n💡 Reply with a number (1-%1) to send that image",
+      randomSuccess: "🖼️ Random image: %1",
+      imageSuccess: "🖼️ Image: %1",
+      similarMatch: "⚠️ No exact match found. Sending similar: %1",
+      noImages: "❌ No images saved yet.",
+      processingError: "❌ Error: %1",
+      sendError: "⚠️ Failed to send image. The URL might be invalid or expired.",
+      dbError: "⚠️ Database connection failed. Please try again later.",
+      invalidNumber: "❗ Please send a valid number between 1 and %1.",
+      sendingImage: "🖼️ Image #%1: %2"
     }
-    
-    // Get media from MongoDB
-    let mediaList = [];
+  },
+
+  onStart: async function ({ event, message, args, api, getLang }) {
     try {
-      mediaList = await Media.find({}).lean();
-    } catch (error) {
-      console.error("Error fetching media:", error);
-      return message.reply("⚠️ Error accessing database. Please try again later.");
-    }
-    
-    const { senderID, messageReply, messageID } = event;
-    const command = args[0]?.toLowerCase();
-
-    // === .media add <name> ===
-    if (command === "add") {
-      if (!messageReply?.attachments?.length)
-        return message.reply("❗ Reply to an image to add.");
-      
-      const attachment = messageReply.attachments[0];
-      // Check if it's an image
-      if (attachment.type !== "photo")
-        return message.reply("❗ Only images are supported.");
-      
-      const name = args.slice(1).join(" ").trim();
-      if (!name) return message.reply("❗ Please provide a name after 'add'.");
-      
-      const url = attachment.url;
-      
-      try {
-        // Check if media already exists
-        const existingMedia = await Media.findOne({ name });
-        if (existingMedia) return message.reply(`⚠️ Image with name "${name}" already exists.`);
-        
-        // Upload to Imgur
-        message.reply("⏳ Uploading image to storage...");
-        const imgurUrl = await uploadToImgur(url);
-        
-        // Save to MongoDB
-        const newMedia = {
-          url: imgurUrl,
-          name: name,
-          uploadedBy: senderID,
-          createdAt: new Date()
-        };
-        
-        await new Media(newMedia).save();
-        
-        api.setMessageReaction("☠️", messageID, () => {}, true);
-        return message.reply(`✅ Image saved as "${name}" successfully.`);
-      } catch (error) {
-        console.error("Error adding image:", error);
-        return message.reply("❌ Failed to add image: " + error.message);
+      // Connect to database
+      const dbConnected = await connectToDatabase();
+      if (!dbConnected) {
+        return message.reply(getLang("dbError"));
       }
-    }
-
-    // === .media remove ===
-    if (command === "remove") {
-      const nameToRemove = args.slice(1).join(" ").trim();
       
-      if (messageReply?.attachments?.length) {
-        const url = messageReply.attachments[0].url;
+      const { senderID, messageReply, messageID, threadID } = event;
+      const command = args[0]?.toLowerCase();
+
+      // === .media add <name> ===
+      if (command === "add") {
+        if (!messageReply?.attachments?.length) {
+          return message.reply(getLang("noReply"));
+        }
+        
+        const attachment = messageReply.attachments[0];
+        if (attachment.type !== "photo") {
+          return message.reply(getLang("noImageAttachment"));
+        }
+        
+        const name = args.slice(1).join(" ").trim();
+        if (!name) {
+          return message.reply(getLang("noName"));
+        }
+        
         try {
-          const result = await Media.findOneAndDelete({ url });
-          if (!result) return message.reply("⚠️ Image not found in database.");
+          // Check if media already exists
+          const existingMedia = await Media.findOne({ name });
+          if (existingMedia) {
+            return message.reply(getLang("exists", name));
+          }
           
-          api.setMessageReaction("☠️", messageID, () => {}, true);
-          return message.reply("✅ Image removed successfully.");
+          // Show loading animation
+          const statusMsg = await message.reply(getLang("adding"));
+          const animationInterval = setInterval(async () => {
+            animationIndex = (animationIndex + 1) % loadingAnimation.length;
+            try {
+              await api.editMessage(loadingAnimation[animationIndex], statusMsg.messageID);
+            } catch (e) {
+              clearInterval(animationInterval);
+            }
+          }, 500);
+          
+          // Download and get file info
+          const response = await axios.get(attachment.url, { responseType: 'arraybuffer' });
+          const fileSize = response.data.length;
+          const fileSizeFormatted = getFileSize(response.data);
+          
+          // Upload to Imgur
+          const imgurUrl = await uploadToImgur(attachment.url);
+          
+          // Save to MongoDB
+          const newMedia = new Media({
+            url: imgurUrl,
+            name: name,
+            uploadedBy: senderID,
+            fileSize: fileSize,
+            keywords: [name],
+            createdAt: new Date()
+          });
+          
+          await newMedia.save();
+          
+          clearInterval(animationInterval);
+          await api.editMessage(getLang("addSuccess", name), statusMsg.messageID);
+          api.setMessageReaction("✅", messageID, () => {}, true);
+          
+        } catch (error) {
+          console.error("Error adding image:", error);
+          return message.reply(getLang("processingError", error.message));
+        }
+      }
+
+      // === .media remove <name> ===
+      else if (command === "remove") {
+        const nameToRemove = args.slice(1).join(" ").trim();
+        if (!nameToRemove) {
+          return message.reply(getLang("noName"));
+        }
+        
+        try {
+          const result = await Media.findOneAndDelete({ 
+            name: { $regex: new RegExp(`^${nameToRemove}$`, 'i') }
+          });
+          
+          if (!result) {
+            return message.reply(getLang("notFound", nameToRemove));
+          }
+          
+          api.setMessageReaction("✅", messageID, () => {}, true);
+          return message.reply(getLang("removeSuccess", result.name));
+          
         } catch (error) {
           console.error("Error removing image:", error);
-          return message.reply("❌ Failed to remove image: " + error.message);
+          return message.reply(getLang("processingError", error.message));
         }
-      } else if (nameToRemove) {
+      }
+
+      // === .media list [page] ===
+      else if (command === "list") {
         try {
-          const result = await Media.findOneAndDelete({ name: nameToRemove });
-          if (!result) return message.reply(`⚠️ Image named "${nameToRemove}" not found.`);
+          const mediaList = await Media.find({}).sort({ name: 1 }).lean();
+          if (mediaList.length === 0) {
+            return message.reply(getLang("listEmpty"));
+          }
           
-          api.setMessageReaction("☠️", messageID, () => {}, true);
-          return message.reply(`✅ Image "${nameToRemove}" removed successfully.`);
-        } catch (error) {
-          console.error("Error removing image by name:", error);
-          return message.reply("❌ Failed to remove image: " + error.message);
-        }
-      } else {
-        return message.reply("❗ Either reply to an image or specify a name to remove.");
-      }
-    }
-
-    // === .media list ===
-    if (command === "list") {
-      if (mediaList.length === 0) return message.reply("❌ No images found.");
-      
-      const page = parseInt(args[1]) || 1;
-      const itemsPerPage = 10;
-      const startIdx = (page - 1) * itemsPerPage;
-      const endIdx = startIdx + itemsPerPage;
-      const totalPages = Math.ceil(mediaList.length / itemsPerPage);
-      
-      // Sort media alphabetically by name
-      const sortedMedia = [...mediaList].sort((a, b) => a.name.localeCompare(b.name));
-      const pageMedia = sortedMedia.slice(startIdx, endIdx);
-      
-      let listMsg = `📄 Image List (Page ${page}/${totalPages}):\n`;
-      pageMedia.forEach((m, i) => {
-        listMsg += `${startIdx + i + 1}. ${m.name}\n`;
-      });
-      
-      if (totalPages > 1) {
-        listMsg += `\nUse "{prefix}media list ${page + 1}" for next page`;
-      }
-      
-      return message.reply(listMsg, (err, info) => {
-        global.GoatBot.onReply.set(info.messageID, {
-          commandName: "media",
-          type: "sendMediaByNumber",
-          author: senderID,
-          mediaList: sortedMedia
-        });
-      });
-    }
-
-    // === .media <name> ===
-    if (command && command !== "add" && command !== "remove" && command !== "list") {
-      const searchName = args.join(" ").toLowerCase();
-      
-      try {
-        // Try exact match
-        let media = await Media.findOne({
-          name: { $regex: new RegExp(`^${searchName}$`, 'i') }
-        });
-        
-        // If no exact match, try similar
-        if (!media) {
-          media = await Media.findOne({
-            name: { $regex: new RegExp(searchName, 'i') }
+          const page = parseInt(args[1]) || 1;
+          const itemsPerPage = 10;
+          const startIdx = (page - 1) * itemsPerPage;
+          const endIdx = startIdx + itemsPerPage;
+          const totalPages = Math.ceil(mediaList.length / itemsPerPage);
+          
+          const pageMedia = mediaList.slice(startIdx, endIdx);
+          
+          let listMsg = getLang("listHeader", page, totalPages, mediaList.length);
+          pageMedia.forEach((m, i) => {
+            const size = m.fileSize ? getFileSize(Buffer.alloc(m.fileSize)) : '0 B';
+            listMsg += getLang("listItem", startIdx + i + 1, m.name, size) + "\n";
           });
+          
+          listMsg += getLang("listFooter", mediaList.length);
+          
+          if (page < totalPages) {
+            listMsg += `\n📄 Use '{prefix}media list ${page + 1}' for next page`;
+          }
+          
+          return message.reply(listMsg, (err, info) => {
+            if (!err) {
+              global.GoatBot.onReply.set(info.messageID, {
+                commandName: "media",
+                type: "sendMediaByNumber",
+                author: senderID,
+                mediaList: mediaList,
+                page: page,
+                totalItems: mediaList.length
+              });
+            }
+          });
+          
+        } catch (error) {
+          console.error("Error listing media:", error);
+          return message.reply(getLang("processingError", error.message));
         }
+      }
+
+      // === .media <name> ===
+      else if (command && !["add", "remove", "list"].includes(command)) {
+        const searchName = args.join(" ").trim();
         
-        if (media) {
+        try {
+          // Try exact match first
+          let media = await Media.findOne({
+            name: { $regex: new RegExp(`^${searchName}$`, 'i') }
+          });
+          
+          // If no exact match, try partial match
+          if (!media) {
+            media = await Media.findOne({
+              name: { $regex: new RegExp(searchName, 'i') }
+            });
+          }
+          
+          if (!media) {
+            return message.reply(getLang("notFound", searchName));
+          }
+          
           try {
-            const isExact = media.name.toLowerCase() === searchName;
+            const isExact = media.name.toLowerCase() === searchName.toLowerCase();
+            const bodyText = isExact 
+              ? getLang("imageSuccess", media.name)
+              : getLang("similarMatch", media.name);
+              
             await message.send({
-              body: isExact 
-                ? `🖼️ Image: ${media.name}` 
-                : `⚠️ No exact match found. Sending similar: ${media.name}`,
+              body: bodyText,
               attachment: await global.utils.getStreamFromURL(media.url)
             });
-            api.setMessageReaction("☠️", messageID, () => {}, true);
+            
+            api.setMessageReaction("✅", messageID, () => {}, true);
+            
           } catch (e) {
             console.error("Error sending image:", e);
-            return message.reply("⚠️ Failed to send image. The URL might be invalid or expired.");
+            api.setMessageReaction("❌", messageID, () => {}, true);
+            return message.reply(getLang("sendError"));
           }
-        } else {
-          return message.reply(`❌ No image found with name "${searchName}".`);
+          
+        } catch (error) {
+          console.error("Error searching image:", error);
+          return message.reply(getLang("processingError", error.message));
         }
-      } catch (error) {
-        console.error("Error searching image:", error);
-        return message.reply("❌ Failed to search image: " + error.message);
-      }
-    }
-
-    // === default .media ===
-    if (!command) {
-      if (mediaList.length === 0) return message.reply("❌ No images saved yet.");
-      
-      let used = global._mediaUsed || {};
-      if (!used[senderID]) used[senderID] = [];
-      
-      // Get media not used yet
-      const allMedia = mediaList;
-      let remaining = allMedia.filter(m => !used[senderID].includes(m.url));
-      
-      // Reset if all media have been used
-      if (remaining.length === 0) {
-        used[senderID] = [];
-        remaining = [...allMedia];
       }
 
-      const chosen = remaining[Math.floor(Math.random() * remaining.length)];
-      used[senderID].push(chosen.url);
-      global._mediaUsed = used;
+      // === .media (random) ===
+      else if (!command) {
+        try {
+          const allMedia = await Media.find({}).lean();
+          if (allMedia.length === 0) {
+            return message.reply(getLang("noImages"));
+          }
+          
+          // Get thread settings
+          const settings = await getThreadSettings(threadID);
+          
+          // Get unused media
+          let availableMedia = allMedia.filter(m => !settings.usedMedia.includes(m.url));
+          
+          // Reset if all media have been used
+          if (availableMedia.length === 0) {
+            settings.usedMedia = [];
+            await settings.save();
+            availableMedia = [...allMedia];
+          }
 
-      try {
-        await message.send({
-          body: `🖼️ Random image: ${chosen.name}`,
-          attachment: await global.utils.getStreamFromURL(chosen.url)
-        });
-        api.setMessageReaction("☠️", messageID, () => {}, true);
-      } catch (e) {
-        console.error("Error sending random image:", e);
-        api.setMessageReaction("💀", messageID, () => {}, true);
-        return message.reply("⚠️ Failed to send image. The URL might be invalid or expired.");
+          // Select random media
+          const chosen = availableMedia[Math.floor(Math.random() * availableMedia.length)];
+          
+          // Mark as used
+          settings.usedMedia.push(chosen.url);
+          settings.updatedAt = new Date();
+          await settings.save();
+
+          try {
+            await message.send({
+              body: getLang("randomSuccess", chosen.name),
+              attachment: await global.utils.getStreamFromURL(chosen.url)
+            });
+            
+            api.setMessageReaction("✅", messageID, () => {}, true);
+            
+          } catch (e) {
+            console.error("Error sending random image:", e);
+            api.setMessageReaction("❌", messageID, () => {}, true);
+            return message.reply(getLang("sendError"));
+          }
+          
+        } catch (error) {
+          console.error("Error getting random image:", error);
+          return message.reply(getLang("processingError", error.message));
+        }
       }
+
+    } catch (error) {
+      console.error("Media command error:", error);
+      return message.reply(getLang("processingError", error.message));
     }
   },
 
-  onReply: async function ({ event, message, api, Reply }) {
-    const { senderID, body, messageID } = event;
-    if (Reply.author !== senderID) return;
+  onReply: async function ({ event, message, api, Reply, getLang }) {
+    try {
+      await connectToDatabase(); // Ensure database connection
+      
+      const { senderID, body, messageID } = event;
+      
+      // Check if the reply is from the same user who requested the list
+      if (Reply.author !== senderID) return;
 
-    if (Reply.type === "sendMediaByNumber") {
-      const num = parseInt(body);
-      const mediaList = Reply.mediaList;
-      if (isNaN(num) || num < 1 || num > mediaList.length)
-        return message.reply("❗ Please send a valid number.");
+      if (Reply.type === "sendMediaByNumber") {
+        const num = parseInt(body.trim());
+        const mediaList = Reply.mediaList;
+        const totalItems = Reply.totalItems || mediaList.length;
+        
+        // Validate the number
+        if (isNaN(num) || num < 1 || num > totalItems) {
+          return message.reply(getLang("invalidNumber", totalItems));
+        }
 
-      const media = mediaList[num - 1];
-      try {
-        await message.send({
-          body: `🖼️ Image #${num}: ${media.name}`,
-          attachment: await global.utils.getStreamFromURL(media.url)
-        });
-        api.setMessageReaction("☠️", messageID, () => {}, true);
-      } catch (e) {
-        console.error("Error sending image by number:", e);
-        api.setMessageReaction("💀", messageID, () => {}, true);
-        return message.reply("⚠️ Failed to send image. The URL might be invalid or expired.");
+        // Get the media item (arrays are 0-indexed)
+        const media = mediaList[num - 1];
+        
+        if (!media) {
+          return message.reply(getLang("invalidNumber", totalItems));
+        }
+        
+        try {
+          await message.send({
+            body: getLang("sendingImage", num, media.name),
+            attachment: await global.utils.getStreamFromURL(media.url)
+          });
+          
+          api.setMessageReaction("✅", messageID, () => {}, true);
+          
+        } catch (e) {
+          console.error("Error sending image by number:", e);
+          api.setMessageReaction("❌", messageID, () => {}, true);
+          return message.reply(getLang("sendError"));
+        }
       }
+      
+    } catch (error) {
+      console.error("Media onReply error:", error);
+      return message.reply(getLang("processingError", error.message));
     }
   }
 };
