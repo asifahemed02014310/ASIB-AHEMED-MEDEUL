@@ -2,8 +2,8 @@ const axios = require("axios");
 
 module.exports = {
   config: {
-    name: "teach",
-    aliases: ["sikho", "shiko", "shikho"],
+    name: "sikho",
+    aliases: ["teach", "shiko", "shikho"],
     version: "1.3",
     author: "Al Amin",
     countDown: 5,
@@ -19,8 +19,8 @@ module.exports = {
   onStart: async function ({ message, event, args, usersData }) {
     const input = args.join(" ").trim();
 
-    if (!input.includes("-")) {
-      return message.reply("Please provide in correct format:\nteach Question - Ans1,Ans2");
+    if (!input.includes("- ")) {
+      return message.reply("Please provide in correct format:\n.sikho Question - Ans1,Ans2");
     }
 
     const lines = input.split("\n");
