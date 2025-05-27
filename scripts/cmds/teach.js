@@ -12,7 +12,7 @@ module.exports = {
     longDescription: "Multiple question-answer pair ek sathe shikhai",
     category: "ai",
     guide: {
-      en: ".sikho Question1:Ans1,Ans2\nQuestion2:Ans1"
+      en: ".sikho Question1 - Ans1,Ans2\nQuestion2:Ans1"
     }
   },
 
