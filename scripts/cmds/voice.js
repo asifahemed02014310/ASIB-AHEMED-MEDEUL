@@ -4,7 +4,6 @@ const fs = require("fs");
 const path = require("path");
 const FormData = require("form-data");
 
-
 const { MONGODB_URI } = require("./DB/Mongodb.json");
 
 // Catbox
@@ -12,44 +11,68 @@ const CATBOX_HASH = "9f09cd44af9d1d8b2197adf9f";
 const CATBOX_UPLOAD_URL = "https://catbox.moe/user/api.php";
 
 
+const separateMongoose = require('mongoose');
+
+let voiceConnection;
 let voiceSchema;
 let settingsSchema;
 let Voice;
 let VoiceSettings;
 
-// Connect to MongoDB
 const connectToDatabase = async () => {
-  if (!mongoose.connection.readyState) {
-    await mongoose.connect(MONGODB_URI, { 
-      useNewUrlParser: true, 
-      useUnifiedTopology: true 
-    });
-  }
-  
-  if (!voiceSchema) {
-    voiceSchema = new mongoose.Schema({
-      name: { type: String, required: true, unique: true },
-      url: { type: String, required: true },
-      uploadedBy: { type: String, required: true },
-      fileSize: { type: Number, default: 0 },
-      keywords: [{ type: String }],
-      createdAt: { type: Date, default: Date.now }
-    });
-    
-    settingsSchema = new mongoose.Schema({
-      threadID: { type: String, required: true, unique: true },
-      voiceMode: { type: Boolean, default: false },
-      createdAt: { type: Date, default: Date.now },
-      updatedAt: { type: Date, default: Date.now }
-    });
-    
-    try {
-      Voice = mongoose.model("Voice");
-      VoiceSettings = mongoose.model("VoiceSettings");
-    } catch (e) {
-      Voice = mongoose.model("Voice", voiceSchema);
-      VoiceSettings = mongoose.model("VoiceSettings", settingsSchema);
+  try {
+    if (!voiceConnection || voiceConnection.readyState !== 1) {
+      voiceConnection = separateMongoose.createConnection(MONGODB_URI, { 
+        useNewUrlParser: true, 
+        useUnifiedTopology: true
+      });
+      
+      // Wait for connection to be established
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Database connection timeout'));
+        }, 10000);
+        
+        voiceConnection.once('open', () => {
+          clearTimeout(timeout);
+          console.log('Voice database connected successfully to:', MONGODB_URI.replace(/\/\/.*@/, '//***:***@'));
+          resolve();
+        });
+        
+        voiceConnection.once('error', (error) => {
+          clearTimeout(timeout);
+          console.error('Voice database connection failed:', error);
+          reject(error);
+        });
+      });
     }
+    
+    // Define schemas if not already defined
+    if (!voiceSchema) {
+      voiceSchema = new separateMongoose.Schema({
+        name: { type: String, required: true, unique: true },
+        url: { type: String, required: true },
+        uploadedBy: { type: String, required: true },
+        fileSize: { type: Number, default: 0 },
+        keywords: [{ type: String }],
+        createdAt: { type: Date, default: Date.now }
+      });
+      
+      settingsSchema = new separateMongoose.Schema({
+        threadID: { type: String, required: true, unique: true },
+        voiceMode: { type: Boolean, default: false },
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now }
+      });
+      
+      Voice = voiceConnection.model("VoiceClips", voiceSchema);
+      VoiceSettings = voiceConnection.model("VoiceClipSettings", settingsSchema);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Voice database connection error:', error);
+    throw error;
   }
 };
 
@@ -162,29 +185,38 @@ const findMatchingVoice = async (messageText) => {
   try {
     const voices = await Voice.find({}).lean();
     const lowerMessageText = messageText.toLowerCase();
-    
+
+   // First match: exact voice name as whole word
     for (const voice of voices) {
-      if (lowerMessageText.includes(voice.name.toLowerCase())) {
+      const namePattern = new RegExp(`\\b${escapeRegex(voice.name.toLowerCase())}\\b`, 'i');
+      if (namePattern.test(lowerMessageText)) {
         return voice;
       }
     }
-    
+
+    // Second match: keywords as whole words
     for (const voice of voices) {
       if (voice.keywords && voice.keywords.length > 0) {
         for (const keyword of voice.keywords) {
-          if (lowerMessageText.includes(keyword.toLowerCase())) {
+          const keywordPattern = new RegExp(`\\b${escapeRegex(keyword.toLowerCase())}\\b`, 'i');
+          if (keywordPattern.test(lowerMessageText)) {
             return voice;
           }
         }
       }
     }
-    
+
     return null;
-  } catch (error) {
-    console.error('Voice matching error:', error);
+  } catch (err) {
+    console.error('Error in findMatchingVoice:', err);
     return null;
   }
 };
+
+// Helper to escape special regex characters from user inputs
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 const loadingAnimation = ["⏳ Adding", "⏳ Adding.", "⏳ Adding..", "⏳ Adding..."];
 let animationIndex = 0;
@@ -221,18 +253,18 @@ module.exports = {
       noName: "❌ Please provide a name after 'add'.",
       noVoiceAttachment: "❌ Reply to a voice ",
       adding: "⏳ Adding",
-      addingDone: "✅ Voice saved: **%1**",
+      addingDone: "✅ Voice saved: *%1*",
       exists: "⚠️ A clip with name '%1' already exists. Use 'remove' first.",
       removed: "✅ Voice clip '%1' removed successfully!",
       notFound: "❌ No voice clip found with name '%1'.",
       listEmpty: "📝 No voice clips found in database.",
-      listHeader: "🎵 Saved Voice Clips (%1 total):",
+      listHeader: "🎵 %1 Voice Clips:",
       listItem: "%2. *%1* (%3)",
-      voiceModeOn: "🔊 Voice mode enabled! Bot will now automatically send voice clips when keywords are detected in messages.",
-      voiceModeOff: "🔇 Voice mode disabled! Auto voice responses are now turned off.",
+      voiceModeOn: "🔊 Voice mode enabled!\nBot will now auto response with keyword ",
+      voiceModeOff: "🔇 Voice mode disabled!",
       noVoicesAvailable: "❌ No voice clips available.",
       processingError: "❌ Error: %1",
-      statusInfo: "🎵 **Voice Settings**\n📊 Total voices: %1\n🔊 Voice mode: %2"
+      statusInfo: "🎵 *Voice Settings*\n📊 Total voices: %1\n🔊 Voice mode: %2"
     }
   },
 
