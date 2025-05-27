@@ -1,15 +1,22 @@
 module.exports = {
   config: {
-    name: "gali",
-    aliases:["murgi"],
-    role : 1,
-    version: "2.4",
-    author: "Alamin",
-    description: "প্রতি ৩ সেকেন্ডে গালি দেয়",
-    usage: "gali add <gali>\ngali dao @mention / reply\ngali off",
-    commandCategory: "fun",
-    cooldowns: 1
-  },
+		name: "gali",
+		aliases :["murgi"],
+		version: "1.1", 
+		author: "",
+		countDown: 0,
+		role: 1,
+		shortDescription: {
+			en: "প্রতি ৩ সেকেন্ডে গালি দেয়"
+		},
+		description: {
+			en: "প্রতি ৩ সেকেন্ডে গালি দেয়"
+		},
+		category: "admin",
+		guide: {
+			en: "gali add <gali>\ngali dao @mention / reply\ngali off"
+		}
+	},
 
   galiList: {},
   activeGali: {},
