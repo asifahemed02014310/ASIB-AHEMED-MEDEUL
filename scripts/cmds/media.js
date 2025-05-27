@@ -283,7 +283,7 @@ module.exports = {
           }
           
           const page = parseInt(args[1]) || 1;
-          const itemsPerPage = 10;
+          const itemsPerPage = 30;
           const startIdx = (page - 1) * itemsPerPage;
           const endIdx = startIdx + itemsPerPage;
           const totalPages = Math.ceil(mediaList.length / itemsPerPage);
