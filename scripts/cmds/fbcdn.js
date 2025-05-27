@@ -4,7 +4,7 @@ module.exports = {
 		aliases: ["link", "l"],
 		version: "1.1",
 		author: "NUR",
-		countDown: 5,
+		countDown: 1,
 		role: 0,
 		shortDescription: {
 			en: "Extract direct download link from media messages"
