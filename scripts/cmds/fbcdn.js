@@ -1,7 +1,7 @@
 module.exports = {
 	config: {
 		name: "fbcdn",
-		aliases :["link","l",""]
+		aliases :["link","l",""],
 		version: "1.1", 
 		author: "NUR",
 		countDown: 5,
