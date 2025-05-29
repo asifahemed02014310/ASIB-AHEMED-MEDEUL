@@ -66,11 +66,11 @@ module.exports.onStart = async ({ message, args, event, api }) => {
 };
 
 const platforms = {
-  TikTok: { regex: /(?:https?:\/\/)?(?:www\.)?tiktok\.com/, endpoint: "/tikDL?url=" },
-  Facebook: { regex: /(?:https?:\/\/)?(?:www\.)?(facebook\.com|fb\.watch|facebook\.com\/share\/v)/, endpoint: "/fbDL?url=" },
-  YouTube: { regex: /(?:https?:\/\/)?(?:www\.)?(youtube\.com|youtu\.be)/, endpoint: "/ytDL?uri=" },
-  Twitter: { regex: /(?:https?:\/\/)?(?:www\.)?x\.com/, endpoint: "/alldl?url=" },
-  Instagram: { regex: /(?:https?:\/\/)?(?:www\.)?instagram\.com/, endpoint: "/instaDL?url=" },
+  TikTok: { regex: /(?:https?:\/\/)?(?:www\.)?tiktok\.com/, endpoint: "/nazrul/tikDL?url=" },
+  Facebook: { regex: /(?:https?:\/\/)?(?:www\.)?(facebook\.com|fb\.watch|facebook\.com\/share\/v)/, endpoint: "/nazrul/fbDL?url=" },
+  YouTube: { regex: /(?:https?:\/\/)?(?:www\.)?(youtube\.com|youtu\.be)/, endpoint: "/nazrul/ytDL?uri=" },
+  Twitter: { regex: /(?:https?:\/\/)?(?:www\.)?x\.com/, endpoint: "/nazrul/alldl?url=" },
+  Instagram: { regex: /(?:https?:\/\/)?(?:www\.)?instagram\.com/, endpoint: "/nazrul/instaDL?url=" },
 };
 
 const detectPlatform = (url) => {
