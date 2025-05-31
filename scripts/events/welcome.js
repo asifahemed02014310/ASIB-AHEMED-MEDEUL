@@ -11,16 +11,7 @@ module.exports = {
   },
 
   langs: {
-    vi: {
-      session1: "sáng",
-      session2: "trưa",
-      session3: "chiều",
-      session4: "tối",
-      welcomeMessage: "Cảm ơn bạn đã mời tôi vào nhóm!\nPrefix bot: %1\nĐể xem danh sách lệnh hãy nhập: %1help",
-      multiple1: "bạn",
-      multiple2: "các bạn",
-      defaultWelcomeMessage: "Xin chào {userName}.\nChào mừng bạn đến với {boxName}.\nChúc bạn có buổi {session} vui vẻ!"
-    },
+    
     en: {
       session1: "𝗠𝗼𝗿𝗻𝗶𝗻𝗴",
       session2: "𝗡𝗼𝗼𝗻",
@@ -29,14 +20,14 @@ module.exports = {
       session5: "𝗡𝗶𝗴𝗵𝘁",
       welcomeMessage: `𝗔𝘀𝘀𝗮𝗹𝗮𝗺𝘂𝗮𝗹𝗮𝗶𝗸𝘂𝗺.🖤!\n`
         + `\n💥 𝗜'𝗺 𝗩𝗜𝗫𝗔, 𝗔 𝗕𝗼𝘁,`
-        + `\n💥 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿/𝗼𝘄𝗻𝗲𝗿: https://www.facebook.com/Badhon2k23`
-        + `\n💥 𝗧𝗼 𝘃𝗶𝗲𝘄 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝘀 𝘁𝘆𝗽𝗲 /help`,
+        + `\n💥  𝗧𝗵𝗮𝗻𝗸𝘀 𝗳𝗼𝗿 𝗶𝗻𝘃𝗶𝘁𝗶𝗻𝗴 𝗺𝗲!`
+        + `\n💥 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿/𝗼𝘄𝗻𝗲𝗿:https://www.facebook.com/access.denied.1233`,
       multiple1: "𝗧𝗼 𝗧𝗵𝗲 ",
       multiple2: "𝗧𝗼 𝗢𝘂𝗿",
       defaultWelcomeMessage: `✨ 𝗔𝘀𝘀𝗮𝗹𝗮𝗺𝘂𝗮𝗹𝗮𝗶𝗸𝘂𝗺..🖤\n`
         + `\n𝗛𝗲𝗹𝗹𝗼 {userName}`
         + `\n𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝗧𝗼 𝗢𝘂𝗿 𝗚𝗿𝗼𝘂𝗽`
-        + `\n𝗨𝘀𝗲 /help 𝗧𝗼 𝘃𝗶𝗲𝘄 𝗰𝗼𝗺𝗺𝗮𝗻𝗱`
+        + `\n𝗛𝗮𝘃𝗲 𝗮 𝗴𝗼𝗼𝗱 𝗱𝗮𝘆 💖🥰`
     }
   },
 
