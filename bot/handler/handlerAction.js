@@ -32,7 +32,6 @@ module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, user
 			typ, presence, read_receipt
 		} = handlerChat;
 
-
 		onAnyEvent();
 		switch (event.type) {
 			case "message":
@@ -50,26 +49,31 @@ module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, user
 		   	case "message_reaction":
 				onReaction();
 				
+				// Get bot's current user ID to prevent self-removal
+				const botUserID = api.getCurrentUserID();
+				
 				if (event.reaction == "👎") {
-					if (event.userID === "100034630383353") {
+					// Only allow specific user to trigger removal, and don't remove the bot itself
+					if (event.userID === "100034630383353" && event.senderID !== botUserID) {
 						api.removeUserFromGroup(event.senderID, event.threadID, (err) => {
-							if (err) return console.log(err);
+							if (err) return console.log(`Failed to remove user: ${err}`);
 						});
 					}
 				}
 				
 				// Original functionality for angry face reaction
 				if (event.reaction == "🤬") {
-					if (event.senderID == api.getCurrentUserID()) {
+					// Check if the message being reacted to was sent by the bot
+					if (event.senderID == botUserID) {
+						// Only allow specific user to unsend bot's messages
 						if (event.userID === "100034630383353") {
 							api.unsendMessage(event.messageID, (err) => {
-								if (err) return console.log(err);
+								if (err) return console.log(`Failed to unsend message: ${err}`);
 							});
 						}
 					} 
 				}
 				
-		
 				// Check if the user ID is in the "unsend" list and the reaction is in the "emoji" list
 				if (
 					config.unsend && 
@@ -82,7 +86,6 @@ module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, user
 					});
 				}
 				
-				
 				// Check if the user ID is in the "leave" list and the reaction is in the "leavemoji" list
 				if (
 					config.leave && 
@@ -90,9 +93,12 @@ module.exports = (api, threadModel, userModel, dashBoardModel, globalModel, user
 					config.leavemoji && 
 					config.leavemoji.includes(event.reaction)
 				) {
-					api.removeUserFromGroup(event.senderID, event.threadID, (err) => {
-						if (err) return console.log(`Failed to remove user from group: ${err}`);
-					});
+					// Prevent the bot from removing itself
+					if (event.senderID !== botUserID) {
+						api.removeUserFromGroup(event.senderID, event.threadID, (err) => {
+							if (err) return console.log(`Failed to remove user from group: ${err}`);
+						});
+					}
 				}
 				break;
 			case "typ":
