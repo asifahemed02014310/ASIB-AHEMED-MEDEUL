@@ -1,42 +1,53 @@
-module.exports = {
+ module.exports = {
 	config: {
 		name: "all",
 		version: "1.2",
 		author: "Nur",
 		countDown: 5,
 		role: 1,
-		description: {
-			vi: "Tag tất cả thành viên trong nhóm chat của bạn",
+		description: {		
 			en: "Tag all members in your group chat"
 		},
 		category: "group",
-		guide: {
-			vi: "   {pn} [nội dung | để trống]",
+		guide: {			
 			en: "   {pn} [content | empty]"
 		}
 	},
 
 	onStart: async function ({ message, event, args }) {
 		const { participantIDs } = event;
-		const lengthAllUser = participantIDs.length;
 		const mentions = [];
 		let body = args.join(" ") || "@all";
-		let bodyLength = body.length;
-		let i = 0;
-		for (const uid of participantIDs) {
-			let fromIndex = 0;
-			if (bodyLength < lengthAllUser) {
-				body += body[bodyLength - 1];
-				bodyLength++;
-			}
-			if (body.slice(0, i).lastIndexOf(body[i]) != -1)
-				fromIndex = i;
-			mentions.push({
-				tag: body[i],
-				id: uid, fromIndex
-			});
-			i++;
+		
+		// Convert string to array of characters (handles emojis properly)
+		const bodyChars = [...body];
+		const lengthAllUser = participantIDs.length;
+		const lastChar = bodyChars[bodyChars.length - 1]; // Get the last character
+		
+		// Extend body if needed by repeating the last character
+		while (bodyChars.length < lengthAllUser) {
+			bodyChars.push(lastChar);
 		}
+		
+		// Rebuild the body string
+		body = bodyChars.slice(0, lengthAllUser).join("");
+		
+		// Create mentions with correct indices
+		let currentIndex = 0;
+		for (let i = 0; i < participantIDs.length; i++) {
+			const uid = participantIDs[i];
+			const tagChar = bodyChars[i];
+			
+			mentions.push({
+				tag: tagChar,
+				id: uid,
+				fromIndex: currentIndex
+			});
+			
+			// Move to next character position
+			currentIndex += tagChar.length;
+		}
+		
 		message.reply({ body, mentions });
 	}
 };
