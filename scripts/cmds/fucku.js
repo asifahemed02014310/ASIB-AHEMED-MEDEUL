@@ -18,7 +18,7 @@ module.exports = {
     if (event.body && /f[\W_]*[u@]([\W_]*[c@])?[\W_]*k[\W_]*[y@]?[o0]?[u@]?/i.test(event.body)) {
       try {
         return await message.reply({
-          body: "Fuck you too🖕",
+          body: "𝗙𝘂𝗰𝗸 𝘆𝗼𝘂 𝘁𝗼𝗼🖕",
           attachment: await global.utils.getStreamFromURL("https://i.ibb.co/sdx6kbgX/1747517965749-image.jpg")
         });
       } catch (err) {
