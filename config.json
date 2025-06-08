@@ -16,7 +16,7 @@
 	"prefix": "*",
 	"adminOnly": {
 		"enable": false,
-		"ignoreCommand": []
+		"ignoreCommand": ["spamkick"]
 	},
 	"ownerOnly": {
   "enable": false
