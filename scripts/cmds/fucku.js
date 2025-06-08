@@ -23,7 +23,7 @@ module.exports = {
         });
       } catch (err) {
         console.error("Error in fuck you module:", err);
-        return message.reply("Fuck you too🖕");
+        return message.reply("𝗙𝘂𝗰𝗸 𝘆𝗼𝘂 𝘁𝗼𝗼🖕");
       }
     }
   }
