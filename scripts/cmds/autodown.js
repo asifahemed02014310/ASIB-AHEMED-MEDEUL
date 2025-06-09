@@ -4,7 +4,7 @@ const dApi = async () => {
   const base = await axios.get(
     "https://raw.githubusercontent.com/EwrShAn25/ShAn.s-Api/refs/heads/main/Api.json"
   );
-  return base.data.shan;
+  return base.data.alldl;
 };
 
 module.exports.config = {
@@ -66,11 +66,26 @@ module.exports.onStart = async ({ message, args, event, api }) => {
 };
 
 const platforms = {
-  TikTok: { regex: /(?:https?:\/\/)?(?:www\.)?tiktok\.com/, endpoint: "/ShAn/tikDL?url=" },
-  Facebook: { regex: /(?:https?:\/\/)?(?:www\.)?(facebook\.com|fb\.watch|facebook\.com\/share\/v)/, endpoint: "/ShAn/fbDL?url=" },
-  YouTube: { regex: /(?:https?:\/\/)?(?:www\.)?(youtube\.com|youtu\.be)/, endpoint: "/ShAn/ytDL?uri=" },
-  Twitter: { regex: /(?:https?:\/\/)?(?:www\.)?x\.com/, endpoint: "/ShAn/alldl?url=" },
-  Instagram: { regex: /(?:https?:\/\/)?(?:www\.)?instagram\.com/, endpoint: "/ShAn/instaDL?url=" },
+  TikTok: {
+    regex: /(?:https?:\/\/)?(?:www\.)?tiktok\.com/,
+    endpoint: "/tikDL?url=",
+  },
+  Facebook: {
+    regex: /(?:https?:\/\/)?(?:www\.)?(facebook\.com|fb\.watch|facebook\.com\/share\/v)/,
+    endpoint: "/fbDL?url=",
+  },
+  YouTube: {
+    regex: /(?:https?:\/\/)?(?:www\.)?(youtube\.com|youtu\.be)/,
+    endpoint: "/ytDL?url=",
+  },
+  Twitter: {
+    regex: /(?:https?:\/\/)?(?:www\.)?x\.com/,
+    endpoint: "/alldl?url=",
+  },
+  Instagram: {
+    regex: /(?:https?:\/\/)?(?:www\.)?instagram\.com/,
+    endpoint: "/instaDL?url=",
+  },
 };
 
 const detectPlatform = (url) => {
