@@ -1,52 +1,45 @@
-const axios = require('axios');
-const baseApiUrl = async () => {
-  const base = await axios.get('https://raw.githubusercontent.com/EwrShAn25/ShAn.s-Api/refs/heads/main/Api.json');
-  return base.data.shan;
-};
+const axios = require("axios");
+const fs = require("fs");
+const path = require("path");
 
 module.exports = {
-  config: { 
-    name: "sei",
-    aliases: ["sei","girls"],
-    version: "2.0",
-    author: "𝗦𝗵𝗔𝗻", // DO NOT CHANGE AUTHOR INFORMATION
-    countDown: 20,
+  config: {
+    name: "wifey",
+    aliases: ["hot","sei"],
+    author: "Kshitiz",
+    version: "1.0",
+    cooldowns: 10,
     role: 0,
-    shortDescription: "",
-    longDescription: "send you a hot girl video",
-    category: "18+",
-    guide: "{p}{n}",
+    shortDescription: "Get random wifey ",
+    longDescription: "Get random wifey video",
+    category: "fun",
+    guide: "{p}wifey",
   },
 
-  onStart: async function ({ message }) {
-    try {
-      const loadingMessage = await message.reply(" Lucca 2 min tham ");
-      
-      const ShAn = await axios.get(`${await baseApiUrl()}/ShAn/girlsvideo`, {
-        timeout: 10000 // 10 seconds timeout
-      });
-      
-      if (!ShAn.data || !ShAn.data.url) {
-        throw new Error("❌ Invalid API response format");
-      }
-      
-      const ShaN = ShAn.data.url;
-      
-      message.reply({
-        body: 'dekh dekh sei',
-        attachment: await global.utils.getStreamFromURL(ShaN)
-      });
+  onStart: async function ({ api, event, args, message }) {
+    api.setMessageReaction("🕐", event.messageID, (err) => {}, true);
 
-      await message.unsend(loadingMessage.messageID);
-      
+    try {
+      const response = await axios.get(`https://wifey-evzk.onrender.com/kshitiz`, { responseType: "stream" });
+
+      const tempVideoPath = path.join(__dirname, "cache", `${Date.now()}.mp4`);
+
+      const writer = fs.createWriteStream(tempVideoPath);
+      response.data.pipe(writer);
+
+      writer.on("finish", async () => {
+        const stream = fs.createReadStream(tempVideoPath);
+
+        message.reply({
+          body: `Random Wifey Videos.`,
+          attachment: stream,
+        });
+
+        api.setMessageReaction("✅", event.messageID, (err) => {}, true);
+      });
     } catch (error) {
-      console.error('Error:', error);
-      
-      try {
-        await message.reply("⚠️ Sorry, the video couldn't be loaded right now. Possible reasons:\n\n• API server is down.");
-      } catch (e) {
-        console.error('Failed to send error message:', e);
-      }
+      console.error(error);
+      message.reply("Sorry, an error occurred while processing your request.");
     }
   }
 };
