@@ -111,7 +111,7 @@ module.exports.onStart = async ({
             return api.sendMessage(data, event.threadID, event.messageID);
         }
 
-        const d = (await axios.get(`${link}?text=${dipto}&senderID=${uid}`)).data.reply;
+        const d = (await axios.get(`${link}?text=${dipto}&senderID=${uid}&font=1`)).data.reply;
         api.sendMessage(d, event.threadID, (error, info) => {
             global.GoatBot.onReply.set(info.messageID, {
                 commandName: this.config.name,
@@ -136,7 +136,7 @@ module.exports.onReply = async ({
 }) => {
     try {
         if (event.type == "message_reply") {
-            const a = (await axios.get(`${await baseApiUrl()}/baby?text=${encodeURIComponent(event.body?.toLowerCase())}&senderID=${event.senderID}`)).data.reply;
+            const a = (await axios.get(`${await baseApiUrl()}/baby?text=${encodeURIComponent(event.body?.toLowerCase())}&senderID=${event.senderID}&font=1`)).data.reply;
             await api.sendMessage(a, event.threadID, (error, info) => {
                 global.GoatBot.onReply.set(info.messageID, {
                     commandName: this.config.name,
@@ -159,9 +159,12 @@ module.exports.onChat = async ({
 }) => {
     try {
         const body = event.body ? event.body?.toLowerCase() : ""
-        if (body.startsWith("baby") || body.startsWith("bby") || body.startsWith("robot") || body.startsWith("sadia") || body.startsWith("bot") || body.startsWith("jan") || body.startsWith("babu") || body.startsWith("mou") || body.startsWith("hi") || body.startsWith("hlw") || body.startsWith("vixa")) {
+        if (body.startsWith("baby") || body.startsWith("bby") || body.startsWith("bot") || body.startsWith("jan") || body.startsWith("babu") ||
+body.startsWith("vai vai") ||
+body.startsWith("alu") ||
+body.startsWith("siyal") ||body.startsWith("vixa")) {
             const arr = body.replace(/^\S+\s*/, "")
-            const randomReplies = ["tmi amake vlobaso..?🙂", "ei neo amr vlobasar sorbot khao🍺!","ami sudu ceyechi tomay👀..sry gan gaccilm,😒bolo kno dakco🙄","Aww tmi koto sundor👉🥹👈","hey beautiful 👀💗","ami tmr sathe kotha bolte caina😾","ato dakos kn amr ki ar kono kam nai", "Bolo jaan ki korte tmr jonno"];
+            const randomReplies = ["😒😒", "ami tor bby na😾","Achi bolo", "Hea bolo", "Bolo jaan ki korte tmr jonno","bolo","Kire bolod,Ki hoice😒","ato dakos kn amr ki ar kono kam nai"];
             if (!arr) {
 
                 await api.sendMessage(randomReplies[Math.floor(Math.random() * randomReplies.length)], event.threadID, (error, info) => {
@@ -174,7 +177,7 @@ module.exports.onChat = async ({
                     });
                 }, event.messageID)
             }
-            const a = (await axios.get(`${await baseApiUrl()}/baby?text=${encodeURIComponent(arr)}&senderID=${event.senderID}`)).data.reply;
+            const a = (await axios.get(`${await baseApiUrl()}/baby?text=${encodeURIComponent(arr)}&senderID=${event.senderID}&font=1`)).data.reply;
             await api.sendMessage(a, event.threadID, (error, info) => {
                 global.GoatBot.onReply.set(info.messageID, {
                     commandName: this.config.name,
