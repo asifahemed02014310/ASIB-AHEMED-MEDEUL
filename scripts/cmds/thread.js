@@ -3,10 +3,10 @@ const { getTime } = global.utils;
 module.exports = {
 	config: {
 		name: "thread",
-		version: "1.5",
-		author: "NTKhang",
+		version: "1.6",
+		author: "NTKhang updated by Hamim",
 		countDown: 5,
-		role: 2,
+		role: 0,
 		description: {
 			vi: "Quản lý các nhóm chat trong hệ thống bot",
 			en: "Manage group chat in bot system"
@@ -22,7 +22,8 @@ module.exports = {
 				+ "\n\n   {pn} unban [<tid> | để trống] để bỏ cấm nhóm mang id <tid> hoặc nhóm hiện tại"
 				+ "\n   Ví dụ:"
 				+ "\n    {pn} unban 3950898668362484"
-				+ "\n    {pn} unban",
+				+ "\n    {pn} unban"
+				+ "\n\n   {pn} [list | -l]: xem danh sách các nhóm bị cấm sử dụng bot",
 			en: "   {pn} [find | -f | search | -s] <name to find>: search group chat in bot data by name"
 				+ "\n   {pn} [find | -f | search | -s] [-j | joined] <name to find>: search group chat in bot data that bot still joined by name"
 				+ "\n   {pn} [ban | -b] [<tid> | leave blank] <reason>: use to ban group with id <tid> or current group using bot"
@@ -33,6 +34,7 @@ module.exports = {
 				+ "\n   Example:"
 				+ "\n    {pn} unban 3950898668362484"
 				+ "\n    {pn} unban"
+				+ "\n\n   {pn} [list | -l]: view list of banned groups from using bot"
 		}
 	},
 
@@ -46,7 +48,10 @@ module.exports = {
 			notBanned: "Hiện tại nhóm mang id [%1 | %2] không bị cấm sử dụng bot",
 			unbanned: "Đã bỏ cấm nhóm mang tid [%1 | %2] sử dụng bot",
 			missingReason: "Lý do cấm không được để trống",
-			info: "» Box ID: %1\n» Tên: %2\n» Ngày tạo data: %3\n» Tổng thành viên: %4\n» Nam: %5 thành viên\n» Nữ: %6 thành viên\n» Tổng tin nhắn: %7%8"
+			info: "» Box ID: %1\n» Tên: %2\n» Ngày tạo data: %3\n» Tổng thành viên: %4\n» Nam: %5 thành viên\n» Nữ: %6 thành viên\n» Tổng tin nhắn: %7%8",
+			bannedList: "📋 Danh sách các nhóm bị cấm (%1 nhóm):\n%2",
+			noBannedThreads: "✅ Hiện tại không có nhóm nào bị cấm sử dụng bot",
+			bannedThreadInfo: "╭─ Tên: %1\n├─ ID: %2\n├─ Lý do: %3\n╰─ Thời gian: %4"
 		},
 		en: {
 			noPermission: "You don't have permission to use this feature",
@@ -57,7 +62,10 @@ module.exports = {
 			notBanned: "Group with id [%1 | %2] is not banned using bot",
 			unbanned: "Unbanned group with tid [%1 | %2] using bot",
 			missingReason: "Ban reason cannot be empty",
-			info: "» Box ID: %1\n» Name: %2\n» Date created data: %3\n» Total members: %4\n» Boy: %5 members\n» Girl: %6 members\n» Total messages: %7%8"
+			info: "» Box ID: %1\n» Name: %2\n» Date created data: %3\n» Total members: %4\n» Boy: %5 members\n» Girl: %6 members\n» Total messages: %7%8",
+			bannedList: "📋 List of banned groups (%1 groups):\n%2",
+			noBannedThreads: "✅ Currently no groups are banned from using bot",
+			bannedThreadInfo: "╭─ Name: %1\n├─ ID: %2\n├─ Reason: %3\n╰─ Time: %4"
 		}
 	},
 
@@ -146,6 +154,30 @@ module.exports = {
 					banned: {}
 				});
 				return message.reply(getLang("unbanned", tid, name));
+			}
+			// list banned threads
+			case "list":
+			case "-l": {
+				if (role < 2)
+					return message.reply(getLang("noPermission"));
+				
+				const allThreads = await threadsData.getAll();
+				const bannedThreads = allThreads.filter(thread => thread.banned && thread.banned.status === true);
+				
+				if (bannedThreads.length === 0) {
+					return message.reply(getLang("noBannedThreads"));
+				}
+				
+				const bannedList = bannedThreads.map(thread => {
+					const name = thread.threadName || "Unknown";
+					const id = thread.threadID;
+					const reason = thread.banned.reason || "No reason provided";
+					const date = thread.banned.date || "Unknown";
+					return getLang("bannedThreadInfo", name, id, reason, date);
+				}).join("\n\n");
+				
+				const msg = getLang("bannedList", bannedThreads.length, bannedList);
+				return message.reply(msg);
 			}
 			// info thread
 			case "info":
