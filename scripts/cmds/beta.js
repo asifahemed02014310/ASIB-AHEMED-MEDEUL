@@ -5,7 +5,7 @@ const axios = require("axios");
 
 module.exports = {
   config: {
-    name: "Vixa",
+    name: "📛",
     version: "1.0",
     author: "nur",
     countDown: 5,
