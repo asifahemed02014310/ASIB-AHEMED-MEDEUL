@@ -18,10 +18,12 @@ module.exports = {
 
 	langs: {
 		vi: {
-			needAdmin: "Vui lòng thêm quản trị viên cho bot trước khi sử dụng tính năng này"
+			needAdmin: "Vui lòng thêm quản trị viên cho bot trước khi sử dụng tính năng này",
+			protectedUser: "uira ja mangerpola 😾"
 		},
 		en: {
-			needAdmin: "Please add the bot as admin"
+			needAdmin: "Please add the bot as admin",
+			protectedUser: "uira ja mangerpola 😾"
 		}
 	},
 
@@ -30,13 +32,15 @@ module.exports = {
 		if (!adminIDs.includes(api.getCurrentUserID()))
 			return message.reply(getLang("needAdmin"));
 		
-		// Protected UID that should never be kicked
-		const protectedUID = "100034630383353";
+		// Get protected UIDs from config (bot owners)
+		const { config } = global.GoatBot;
+		const protectedUIDs = config.ownerBot || [];
 		
 		async function kickAndCheckError(uid) {
-			// First check if this is the protected UID
-			if (uid === protectedUID) {
-				return; // Don't kick the protected user
+			// Check if this is a protected UID (bot owner)
+			if (protectedUIDs.includes(uid)) {
+				message.reply(getLang("protectedUser"));
+				return "PROTECTED";
 			}
 			
 			try {
@@ -54,10 +58,9 @@ module.exports = {
 			
 			// Check if the replied message is from protected user
 			const replyUID = event.messageReply.senderID;
-			if (replyUID === protectedUID) {
-				return; // Don't kick the protected user
-			} else {
-				await kickAndCheckError(replyUID);
+			const result = await kickAndCheckError(replyUID);
+			if (result === "PROTECTED" || result === "ERROR") {
+				return; // Stop execution if protected or error
 			}
 		}
 		else {
@@ -65,18 +68,24 @@ module.exports = {
 			if (uids.length === 0)
 				return message.SyntaxError();
 			
+			let hasProtectedUser = false;
+			
 			// Process each mentioned user one by one
 			for (const uid of uids) {
-				// Check if this is the protected UID
-				if (uid === protectedUID) {
+				const result = await kickAndCheckError(uid);
+				
+				if (result === "PROTECTED") {
+					hasProtectedUser = true;
 					continue; // Skip this user and move to the next
 				}
 				
-				// Try to kick this user
-				if (await kickAndCheckError(uid) === "ERROR") {
+				if (result === "ERROR") {
 					return; // Stop if an error occurs
 				}
 			}
+			
+			// If only protected users were mentioned, the message was already sent
+			// No need for additional handling
 		}
 	}
 };
