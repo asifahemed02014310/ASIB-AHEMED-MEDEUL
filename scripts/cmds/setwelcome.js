@@ -12,7 +12,7 @@ module.exports = {
 			vi: "Chỉnh sửa nội dung tin nhắn chào mừng thành viên mới tham gia vào nhóm chat của bạn",
 			en: "Edit welcome message content when new member join your group chat"
 		},
-		category: "utility",
+		category: "𝗔𝗗𝗠𝗜𝗡",
 		guide: {
 			vi: {
 				body: "   {pn} text [<nội dung> | reset]: chỉnh sửa nội dung văn bản hoặc reset về mặc định, với những shortcut có sẵn:"
@@ -164,4 +164,4 @@ async function saveChanges(message, event, threadID, senderID, threadsData, getL
 		data
 	});
 	message.reply(getLang("addedFile", attachments.length));
-}
+						}
