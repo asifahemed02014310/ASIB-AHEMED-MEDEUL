@@ -33,7 +33,7 @@ module.exports = {
 		const path = require("path");
 		const FormData = require('form-data');
 		
-		const apiEndpoint = "https://nur-s-api.onrender.com/Nurimg";
+		const apiEndpoint = "https://hamim-s-api.onrender.com/imgbb";
 		let imageUrl;
 		let imageBuffer;
 		function isValidUrl(string) {
