@@ -1,7 +1,7 @@
 module.exports = {
   config: {
     name: "editmsg",
-    aliases: ["em","edit","m"],
+    aliases: ["em","editm","m"],
     version: "1.1",
     author: "𝗦𝗵𝗔𝗻", // DO NOT CHANGE AUTHOR INFORMATION
     role: 2,
