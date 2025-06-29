@@ -8,7 +8,7 @@ module.exports = {
   config: {
     name: "help",
     version: "1.18",
-    author: "ShAn",
+    author: "Hamim",
     countDown: 5,
     role: 0,
     shortDescription: {
@@ -52,7 +52,7 @@ module.exports = {
         msg += `\n╭────────────⭓\n│『 ${categories[key].canonical} 』`;
         const names = categories[key].commands.sort();
         names.forEach((item) => {
-          msg += `\n│⭕${item}`;
+          msg += `\n│➥ ${item}`;
         });
         msg += `\n╰────────⭓`;
       });
@@ -66,7 +66,7 @@ module.exports = {
       if (adminCommands.length > 0) {
         msg += `\n\n╔══════════════╗\n🔰𝗔𝗱𝗺𝗶𝗻 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀 \n╚══════════════╝\n`;
         adminCommands.forEach((cmdName) => {
-          msg += `\n💥- ${cmdName}`;
+          msg += `\n❇️ ${cmdName}`;
         });
       }
 
