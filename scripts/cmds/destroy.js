@@ -1,7 +1,7 @@
 module.exports = {
 	config: {
 		name: "destroy",
-    aliases:["dismiss","kill"]
+		aliases: ["dismiss", "kill"],
 		version: "1.0",
 		author: "Hamim",
 		countDown: 5,
@@ -21,79 +21,130 @@ module.exports = {
 			cancelled: "✅ | Operation cancelled.",
 			timeout: "⏱️ | Confirmation timed out.",
 			starting: "⏳ | Starting removal...",
-			removedCount: "✅ | Successfully kicked %1 members."
+			removedCount: "✅ | Successfully kicked %1 members.",
+			needAdmin: "Please add the bot as admin before using this feature",
+			errorOccurred: "❌ | An error occurred: %1",
+			noMembers: "ℹ️ | No members to remove.",
+			protectedUser: "Some users are protected and cannot be removed"
 		}
 	},
 
-	onStart: async function ({ message, event, api, getLang }) {
-		message.reply(getLang("confirmation"));
+	onStart: async function ({ message, event, api, getLang, threadsData }) {
+		try {
+			// Check if bot is admin using the same method as kick command
+			const adminIDs = await threadsData.get(event.threadID, "adminIDs");
+			if (!adminIDs.includes(api.getCurrentUserID())) {
+				return message.reply(getLang("needAdmin"));
+			}
 
-		let confirmed = false;
-		let cancelled = false;
-		const listener = (reply) => {
-			if (
-				reply.threadID === event.threadID &&
-				reply.senderID === event.senderID
-			) {
-				const body = reply.body.toLowerCase();
-				if (body === "yes") {
-					confirmed = true;
-					api.off("message", listener);
-				} else if (body === "no") {
-					cancelled = true;
-					api.off("message", listener);
+			// Send confirmation and set up reply listener
+			message.reply(getLang("confirmation"), (err, info) => {
+				if (!err) {
+					global.GoatBot.onReply.set(info.messageID, {
+						commandName: this.config.name,
+						messageID: info.messageID,
+						author: event.senderID,
+						threadID: event.threadID
+					});
 				}
-			}
-		};
+			});
 
-		api.on("message", listener);
-
-		const timeout = setTimeout(() => {
-			api.off("message", listener);
-			if (!confirmed && !cancelled) {
-				message.reply(getLang("timeout"));
-			}
-		}, 60000);
-
-		while (!confirmed && !cancelled) {
-			await new Promise(resolve => setTimeout(resolve, 500));
+		} catch (error) {
+			console.error("Error in destroy command:", error);
+			message.reply(getLang("errorOccurred", error.message || "Unknown error"));
 		}
-		clearTimeout(timeout);
+	},
 
-		if (cancelled) {
+	onReply: async function ({ message, event, api, Reply, getLang, threadsData }) {
+		// Check if the reply is from the original command user
+		if (Reply.author !== event.senderID) return;
+
+		const userReply = event.body.toLowerCase().trim();
+
+		if (userReply === "no") {
 			return message.reply(getLang("cancelled"));
 		}
 
-		const threadInfo = await api.getThreadInfo(event.threadID);
-		const participantIDs = threadInfo.participantIDs;
-
-		const protectedUsers = [
-			api.getCurrentUserID(),
-			event.senderID         
-		];
-
-		// Filter members to remove
-		const membersToRemove = participantIDs.filter(uid => 
-			!protectedUsers.includes(uid)
-		);
-
-		if (membersToRemove.length === 0) {
-			return message.reply("ℹ️ | No members to remove.");
+		if (userReply !== "yes") {
+			return; // Ignore other replies
 		}
 
-		message.reply(getLang("starting"));
+		try {
+			// User confirmed, proceed with removal
+			const threadInfo = await api.getThreadInfo(event.threadID);
+			const botID = api.getCurrentUserID();
+			
+			// Get protected UIDs from config (bot owners) - same as kick command
+			const { config } = global.GoatBot;
+			const protectedUIDs = config.ownerBot || [];
+			
+			// Get thread admin IDs
+			const adminIDs = await threadsData.get(event.threadID, "adminIDs");
+			
+			const participantIDs = threadInfo.participantIDs || [];
 
-		let successCount = 0;
-		for (const uid of membersToRemove) {
-			try {
-				await api.removeUserFromGroup(uid, event.threadID);
-				successCount++;
-				await new Promise(resolve => setTimeout(resolve, 1000)); // 1s delay
-			} catch (e) {
-				// Skip errors (members might have left already)
+			// Protected users (bot, command sender, thread admins, and bot owners)
+			const protectedUsers = [
+				botID,
+				event.senderID,
+				...adminIDs, // Thread admins
+				...protectedUIDs // Bot owners
+			];
+
+			// Filter members to remove
+			const membersToRemove = participantIDs.filter(uid => 
+				!protectedUsers.includes(uid)
+			);
+
+			if (membersToRemove.length === 0) {
+				return message.reply(getLang("noMembers"));
 			}
-		}
 
-		message.reply(getLang("removedCount", successCount));
+			await message.reply(getLang("starting"));
+
+			let successCount = 0;
+			let protectedCount = 0;
+			
+			// Function to kick user (same logic as kick command)
+			async function kickAndCheckError(uid) {
+				// Check if this is a protected UID (bot owner)
+				if (protectedUIDs.includes(uid)) {
+					protectedCount++;
+					return "PROTECTED";
+				}
+				
+				try {
+					await api.removeUserFromGroup(uid, event.threadID);
+					return "SUCCESS";
+				}
+				catch (e) {
+					console.log(`Failed to remove user ${uid}:`, e.message);
+					return "ERROR";
+				}
+			}
+			
+			// Remove members one by one with delay
+			for (const uid of membersToRemove) {
+				const result = await kickAndCheckError(uid);
+				
+				if (result === "SUCCESS") {
+					successCount++;
+				}
+				
+				// Add delay
+				await new Promise(resolve => setTimeout(resolve, 1000));
+			}
+
+			let responseMessage = getLang("removedCount", successCount);
+			if (protectedCount > 0) {
+				responseMessage += `\n${getLang("protectedUser")}`;
+			}
+
+			message.reply(responseMessage);
+
+		} catch (error) {
+			console.error("Error in destroy command onReply:", error);
+			message.reply(getLang("errorOccurred", error.message || "Unknown error"));
+		}
 	}
 };
