@@ -1,4 +1,4 @@
-*cmd install DND.js if (!global.client.busyList)
+if (!global.client.busyList)
 	global.client.busyList = {};
 
 module.exports = {
