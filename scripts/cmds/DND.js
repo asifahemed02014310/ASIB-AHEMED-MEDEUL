@@ -1,4 +1,4 @@
-if (!global.client.busyList)
+*cmd install DND.js if (!global.client.busyList)
 	global.client.busyList = {};
 
 module.exports = {
@@ -36,7 +36,7 @@ module.exports = {
 			turnedOnWithReason: "✅ | Do not disturb mode has been turned on with reason: %1",
 			turnedOnWithoutReason: "✅ | Do not disturb mode has been turned on",
 			alreadyOn: "User %1 is currently busy",
-			alreadyOnWithReason: "User %1 is currently busy with reason: %2"
+			alreadyOnWithReason: "👤%1 is currently busy.!\n🎯reason: %2"
 		}
 	},
 
@@ -67,12 +67,16 @@ module.exports = {
 		const arrayMentions = Object.keys(mentions);
 
 		for (const userID of arrayMentions) {
-			const reasonBusy = global.db.allUserData.find(item => item.userID == userID)?.data.busy || false;
-			if (reasonBusy !== false) {
+			const userData = global.db.allUserData.find(item => item.userID == userID);
+			const reasonBusy = userData?.data?.busy;
+			
+			// Check if busy mode is enabled (not undefined and not false)
+			if (reasonBusy !== undefined && reasonBusy !== false) {
 				return message.reply(
-					reasonBusy ?
+					reasonBusy && reasonBusy.trim() !== "" ?
 						getLang("alreadyOnWithReason", mentions[userID].replace("@", ""), reasonBusy) :
-						getLang("alreadyOn", mentions[userID].replace("@", "")));
+						getLang("alreadyOn", mentions[userID].replace("@", ""))
+				);
 			}
 		}
 	}
