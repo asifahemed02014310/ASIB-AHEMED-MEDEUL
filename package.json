@@ -9,6 +9,7 @@
 	},
 	"dependencies": {
 		"@distube/ytdl-core": "^4.13.3",
+		"@google/generative-ai": "^0.15.0",
 		"axios": "^1.4.0",
 		"form-data": "^4.0.0",
 		"bcrypt": "^5.0.1",
