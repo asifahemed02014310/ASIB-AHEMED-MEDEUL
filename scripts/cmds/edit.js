@@ -1,60 +1,70 @@
-const axios = require("axios");
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
   config: {
     name: "edit",
-    aliases: [],
-    version: "1.1",
-    author: "Alamin",
-    countDown: 2,
+    version: "1.0",
+    author: "ShAn",
     role: 0,
-    shortDescription: {
-      en: "Edit image with prompt (reply only)"
+    countDown: 20,
+    description: {
+      en: "Edit images via ShAn API"
     },
-    longDescription: {
-      en: "Reply to an image and provide a prompt to edit it using AI."
-    },
-    category: "image",
+    category: "Tool",
     guide: {
-      en: "{p}edit <prompt> → Reply to an image and give instruction to edit it."
+      en: "Reply to an image with 'edit [prompt]'"
     }
   },
 
-  onStart: async function ({ message, event, args, api }) {
-    const prompt = args.join(" ");
-    if (!prompt) return message.reply("Please provide a prompt for image editing.");
-    if (!event.messageReply || !event.messageReply.attachments || event.messageReply.attachments.length === 0)
-      return message.reply("Please reply to an image.");
-
-    const attachment = event.messageReply.attachments[0];
-    if (attachment.type !== "photo") return message.reply("Please reply to a photo only.");
-
-    api.setMessageReaction("⏳", event.messageID, () => {}, true);
-
+  onStart: async function ({ api, event, args, message }) {
     try {
-      const imgUrl = encodeURIComponent(attachment.url);
-      const encodedPrompt = encodeURIComponent(prompt);
-      const apiUrl = `https://alit-x-api.onrender.com/api/edit?prompt=${encodedPrompt}&url=${imgUrl}`;
-
-      const res = await axios.get(apiUrl);
-      
-      if (!res.data || !res.data.imageUrl) {
-        return message.reply("No image returned from API.");
+      const loadingMessage = await message.reply("⏳ Daraw Bbu Ditechi...");
+      // Check for image
+      if (!(event.messageReply?.attachments?.[0]?.type === "photo")) {
+        return message.reply("❌ Reply to an image first");
       }
 
-      const editedImageUrl = res.data.imageUrl;
+      const prompt = args.join(" ");
+      if (!prompt) return message.reply("❌ Add editing instructions");
 
-      await message.reply({
-        body: "✨ | Edited image ready!",
-        attachment: await global.utils.getStreamFromURL(editedImageUrl)
+      const imageUrl = event.messageReply.attachments[0].url;
+      const apiUrl = `https://shans-api-07-k7j4.onrender.com/ShAn/edit?url=${encodeURIComponent(imageUrl)}&prompt=${encodeURIComponent(prompt)}`;
+
+      // Call API
+      const { data } = await axios.get(apiUrl);
+      if (!data.url) throw new Error("API returned no image");
+
+      // Download and send
+      const tempPath = path.join(__dirname, `edit_${Date.now()}.jpg`);
+      const writer = fs.createWriteStream(tempPath);
+      
+      const response = await axios({
+        url: data.url,
+        method: 'GET',
+        responseType: 'stream'
       });
 
-      api.setMessageReaction("✅", event.messageID, () => {}, true);
+      response.data.pipe(writer);
 
-    } catch (err) {
-      console.error("Edit command error:", err.message);
-      message.reply("Image edit failed. Please try again later.");
-      api.setMessageReaction("❌", event.messageID, () => {}, true);
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+
+      await message.reply({
+        body: "✅ Edited successfully",
+        attachment: fs.createReadStream(tempPath)
+      });
+
+      await message.unsend(loadingMessage.messageID);
+
+      fs.unlinkSync(tempPath);
+      
+    } catch (error) {
+      console.error(error);
+      message.reply("❌ Failed to edit image. Error: " + error.message);
     }
   }
 };
