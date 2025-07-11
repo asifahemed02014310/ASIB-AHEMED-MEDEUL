@@ -2,17 +2,31 @@ const { config } = global.GoatBot;
 const { MongoClient } = require('mongodb');
 
 // MongoDB connection setup
+let client;
 let db;
 let adminCollection;
 
 async function connectToDatabase() {
-    if (!db) {
-        const client = new MongoClient(config.uriMongodb);
-        await client.connect();
-        db = client.db();
-        adminCollection = db.collection('admins');
+    try {
+        if (!client) {
+            client = new MongoClient(config.uriMongodb, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true
+            });
+            await client.connect();
+            console.log('✅ Connected to MongoDB');
+        }
+        
+        if (!db) {
+            db = client.db();
+            adminCollection = db.collection('admins');
+        }
+        
+        return { db, adminCollection };
+    } catch (error) {
+        console.error('❌ MongoDB connection error:', error);
+        throw error;
     }
-    return { db, adminCollection };
 }
 
 // Sync database with config array (call this on bot startup)
