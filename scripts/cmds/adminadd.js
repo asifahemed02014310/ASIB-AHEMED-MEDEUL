@@ -4,9 +4,9 @@ const { writeFileSync } = require("fs-extra");
 module.exports = {
     config: {
         name: "adminadd",
-        aliases:["ad"],
-        version: "1.3",
-        author: "Hamim",
+        aliases: ["ad"],
+        version: "1.4",
+        author: "Nur",
         countDown: 5,
         role: 2,
         category: "𝗕𝗢𝗧 𝗠𝗔𝗡𝗔𝗚𝗘𝗠𝗘𝗡𝗧",
@@ -43,7 +43,7 @@ module.exports = {
                 } else if (event.messageReply) {
                     uids.push(event.messageReply.senderID);
                 } else {
-                    uids = args.filter(arg => !isNaN(arg));
+                    uids = args.slice(1).filter(arg => !isNaN(arg));
                 }
 
                 if (uids.length === 0) {
@@ -54,29 +54,68 @@ module.exports = {
                 const alreadyAdmins = [];
 
                 for (const uid of uids) {
-                    const userData = await usersData.get(uid);
-                    
-                    if (userData && userData.data && userData.data.isAdmin) {
-                        alreadyAdmins.push(uid);
-                    } else {
-                        newAdmins.push(uid);
+                    try {
+                        // Check if user exists in database, if not create them
+                        let userData = await usersData.get(uid);
+                        if (!userData) {
+                            await usersData.create(uid);
+                            userData = await usersData.get(uid);
+                        }
+
+                        // Check if already admin
+                        const isCurrentlyAdmin = (userData.data && userData.data.isAdmin) || config.adminBot.includes(uid);
+                        
+                        if (isCurrentlyAdmin) {
+                            alreadyAdmins.push(uid);
+                        } else {
+                            newAdmins.push(uid);
+                        }
+                    } catch (error) {
+                        console.error(`Error checking user ${uid}:`, error);
                     }
                 }
 
-                // Update database for new admins
+                // Update database and config for new admins
                 for (const uid of newAdmins) {
-                    await usersData.set(uid, {
-                        isAdmin: true
-                    }, "data");
+                    try {
+                        // Update database
+                        await usersData.set(uid, {
+                            isAdmin: true
+                        }, "data");
+
+                        // Update config file for immediate effect and persistence
+                        if (!config.adminBot.includes(uid)) {
+                            config.adminBot.push(uid);
+                        }
+                    } catch (error) {
+                        console.error(`Error adding admin ${uid}:`, error);
+                    }
                 }
 
-                // Also update config for immediate effect (backward compatibility)
-                const configNewAdmins = newAdmins.filter(uid => !config.adminBot.includes(uid));
-                config.adminBot.push(...configNewAdmins);
-                writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
+                // Save config changes
+                if (newAdmins.length > 0) {
+                    try {
+                        writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
+                    } catch (error) {
+                        console.error("Error saving config:", error);
+                    }
+                }
 
-                const newAdminNames = await Promise.all(newAdmins.map(uid => usersData.getName(uid)));
-                const alreadyAdminNames = await Promise.all(alreadyAdmins.map(uid => usersData.getName(uid)));
+                const newAdminNames = await Promise.all(newAdmins.map(async uid => {
+                    try {
+                        return await usersData.getName(uid);
+                    } catch {
+                        return uid;
+                    }
+                }));
+                
+                const alreadyAdminNames = await Promise.all(alreadyAdmins.map(async uid => {
+                    try {
+                        return await usersData.getName(uid);
+                    } catch {
+                        return uid;
+                    }
+                }));
 
                 return message.reply(
                     (newAdmins.length > 0 ? 
@@ -96,7 +135,7 @@ module.exports = {
                 } else if (event.messageReply) {
                     uids.push(event.messageReply.senderID);
                 } else {
-                    uids = args.filter(arg => !isNaN(arg));
+                    uids = args.slice(1).filter(arg => !isNaN(arg));
                 }
 
                 if (uids.length === 0) {
@@ -107,33 +146,63 @@ module.exports = {
                 const notAdmins = [];
 
                 for (const uid of uids) {
-                    const userData = await usersData.get(uid);
-                    
-                    if (userData && userData.data && userData.data.isAdmin) {
-                        removedAdmins.push(uid);
-                    } else {
+                    try {
+                        const userData = await usersData.get(uid);
+                        const isCurrentlyAdmin = (userData && userData.data && userData.data.isAdmin) || config.adminBot.includes(uid);
+                        
+                        if (isCurrentlyAdmin) {
+                            removedAdmins.push(uid);
+                        } else {
+                            notAdmins.push(uid);
+                        }
+                    } catch (error) {
+                        console.error(`Error checking user ${uid}:`, error);
                         notAdmins.push(uid);
                     }
                 }
 
-                // Update database for removed admins
+                // Update database and config for removed admins
                 for (const uid of removedAdmins) {
-                    await usersData.set(uid, {
-                        isAdmin: false
-                    }, "data");
-                }
+                    try {
+                        // Update database
+                        await usersData.set(uid, {
+                            isAdmin: false
+                        }, "data");
 
-                // Also update config for immediate effect (backward compatibility)
-                for (const uid of removedAdmins) {
-                    const index = config.adminBot.indexOf(uid);
-                    if (index > -1) {
-                        config.adminBot.splice(index, 1);
+                        // Update config file
+                        const index = config.adminBot.indexOf(uid);
+                        if (index > -1) {
+                            config.adminBot.splice(index, 1);
+                        }
+                    } catch (error) {
+                        console.error(`Error removing admin ${uid}:`, error);
                     }
                 }
-                writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
 
-                const removedAdminNames = await Promise.all(removedAdmins.map(uid => usersData.getName(uid)));
-                const notAdminNames = await Promise.all(notAdmins.map(uid => usersData.getName(uid)));
+                // Save config changes
+                if (removedAdmins.length > 0) {
+                    try {
+                        writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
+                    } catch (error) {
+                        console.error("Error saving config:", error);
+                    }
+                }
+
+                const removedAdminNames = await Promise.all(removedAdmins.map(async uid => {
+                    try {
+                        return await usersData.getName(uid);
+                    } catch {
+                        return uid;
+                    }
+                }));
+                
+                const notAdminNames = await Promise.all(notAdmins.map(async uid => {
+                    try {
+                        return await usersData.getName(uid);
+                    } catch {
+                        return uid;
+                    }
+                }));
 
                 return message.reply(
                     (removedAdmins.length > 0 ? 
@@ -145,30 +214,39 @@ module.exports = {
             
             case "list":
             case "-l": {
-                // Get all users with admin role from database
-                const allUsers = await usersData.getAll();
-                const adminUsers = [];
-                
-                for (const [uid, userData] of allUsers) {
-                    if (userData.data && userData.data.isAdmin) {
-                        adminUsers.push(uid);
+                try {
+                    // Get all users with admin role from database
+                    const allUsers = await usersData.getAll();
+                    const adminUsers = [];
+                    
+                    for (const [uid, userData] of allUsers) {
+                        if (userData.data && userData.data.isAdmin) {
+                            adminUsers.push(uid);
+                        }
                     }
+                    
+                    // Also include config admins and merge them
+                    const configAdmins = config.adminBot || [];
+                    const allAdmins = [...new Set([...adminUsers, ...configAdmins])]; // Remove duplicates
+                    
+                    if (allAdmins.length === 0) {
+                        return message.reply(getLang("noAdmins"));
+                    }
+                    
+                    const adminNames = await Promise.all(allAdmins.map(async (uid) => {
+                        try {
+                            const name = await usersData.getName(uid);
+                            return `• ${name} (${uid})`;
+                        } catch {
+                            return `• ${uid}`;
+                        }
+                    }));
+                    
+                    return message.reply(getLang("adminList", allAdmins.length, adminNames.join("\n")));
+                } catch (error) {
+                    console.error("Error listing admins:", error);
+                    return message.reply("❌ | Error occurred while fetching admin list.");
                 }
-                
-                // Also include config admins for backward compatibility
-                const configAdmins = config.adminBot.filter(uid => !adminUsers.includes(uid));
-                const allAdmins = [...adminUsers, ...configAdmins];
-                
-                if (allAdmins.length === 0) {
-                    return message.reply(getLang("noAdmins"));
-                }
-                
-                const adminNames = await Promise.all(allAdmins.map(async (uid) => {
-                    const name = await usersData.getName(uid);
-                    return `• ${name} (${uid})`;
-                }));
-                
-                return message.reply(getLang("adminList", allAdmins.length, adminNames.join("\n")));
             }
 
             default: {
