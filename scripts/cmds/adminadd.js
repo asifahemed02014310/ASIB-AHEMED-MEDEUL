@@ -15,7 +15,23 @@ async function connectToDatabase() {
     return { db, adminCollection };
 }
 
-// Initialize admin data in database
+// Sync database with config array (call this on bot startup)
+async function syncConfigWithDatabase() {
+    try {
+        const { adminCollection } = await connectToDatabase();
+        const adminDoc = await adminCollection.findOne({ _id: 'adminBot' });
+        
+        if (adminDoc && adminDoc.admins) {
+            // Update config.adminBot with database data
+            config.adminBot = [...adminDoc.admins];
+            console.log('✅ Admin data synced from database:', config.adminBot);
+        }
+    } catch (error) {
+        console.error('❌ Failed to sync admin data from database:', error);
+    }
+}
+
+// Initialize admin data in database and sync with config
 async function initializeAdminData() {
     const { adminCollection } = await connectToDatabase();
     
@@ -28,6 +44,9 @@ async function initializeAdminData() {
             _id: 'adminBot',
             admins: config.adminBot || []
         });
+    } else {
+        // Sync database data with config on bot startup
+        config.adminBot = adminDoc.admins || [];
     }
 }
 
@@ -48,7 +67,7 @@ async function updateAdminList(newAdminList) {
     );
 }
 
-// Add admin to database
+// Add admin to database and sync with config
 async function addAdminToDatabase(uid) {
     const { adminCollection } = await connectToDatabase();
     await adminCollection.updateOne(
@@ -56,15 +75,26 @@ async function addAdminToDatabase(uid) {
         { $addToSet: { admins: uid } },
         { upsert: true }
     );
+    
+    // Sync with config array
+    if (!config.adminBot.includes(uid)) {
+        config.adminBot.push(uid);
+    }
 }
 
-// Remove admin from database
+// Remove admin from database and sync with config
 async function removeAdminFromDatabase(uid) {
     const { adminCollection } = await connectToDatabase();
     await adminCollection.updateOne(
         { _id: 'adminBot' },
         { $pull: { admins: uid } }
     );
+    
+    // Sync with config array
+    const index = config.adminBot.indexOf(uid);
+    if (index > -1) {
+        config.adminBot.splice(index, 1);
+    }
 }
 
 // Check if user is admin
@@ -101,6 +131,15 @@ module.exports = {
             adminList: "📋 | Admin List (%1 users):\n%2",
             noAdmins: "⚠️ | There are currently no users with admin role",
             databaseError: "❌ | Database error occurred. Please try again later."
+        }
+    },
+
+    // This function runs when the bot starts up
+    onLoad: async function() {
+        try {
+            await syncConfigWithDatabase();
+        } catch (error) {
+            console.error('❌ Failed to sync admin data on startup:', error);
         }
     },
 
