@@ -1,11 +1,83 @@
 const { config } = global.GoatBot;
-const { writeFileSync } = require("fs-extra");
+const { MongoClient } = require('mongodb');
+
+// MongoDB connection setup
+let db;
+let adminCollection;
+
+async function connectToDatabase() {
+    if (!db) {
+        const client = new MongoClient(config.uriMongodb);
+        await client.connect();
+        db = client.db();
+        adminCollection = db.collection('admins');
+    }
+    return { db, adminCollection };
+}
+
+// Initialize admin data in database
+async function initializeAdminData() {
+    const { adminCollection } = await connectToDatabase();
+    
+    // Check if admin document exists
+    const adminDoc = await adminCollection.findOne({ _id: 'adminBot' });
+    
+    if (!adminDoc) {
+        // Create initial admin document with existing admins from config
+        await adminCollection.insertOne({
+            _id: 'adminBot',
+            admins: config.adminBot || []
+        });
+    }
+}
+
+// Get admin list from database
+async function getAdminList() {
+    const { adminCollection } = await connectToDatabase();
+    const adminDoc = await adminCollection.findOne({ _id: 'adminBot' });
+    return adminDoc ? adminDoc.admins : [];
+}
+
+// Update admin list in database
+async function updateAdminList(newAdminList) {
+    const { adminCollection } = await connectToDatabase();
+    await adminCollection.updateOne(
+        { _id: 'adminBot' },
+        { $set: { admins: newAdminList } },
+        { upsert: true }
+    );
+}
+
+// Add admin to database
+async function addAdminToDatabase(uid) {
+    const { adminCollection } = await connectToDatabase();
+    await adminCollection.updateOne(
+        { _id: 'adminBot' },
+        { $addToSet: { admins: uid } },
+        { upsert: true }
+    );
+}
+
+// Remove admin from database
+async function removeAdminFromDatabase(uid) {
+    const { adminCollection } = await connectToDatabase();
+    await adminCollection.updateOne(
+        { _id: 'adminBot' },
+        { $pull: { admins: uid } }
+    );
+}
+
+// Check if user is admin
+async function isAdmin(uid) {
+    const adminList = await getAdminList();
+    return adminList.includes(uid);
+}
 
 module.exports = {
     config: {
         name: "adminadd",
         aliases: ["ad"],
-        version: "1.4",
+        version: "1.3",
         author: "Nur",
         countDown: 5,
         role: 2,
@@ -27,231 +99,122 @@ module.exports = {
             notAdmin: "⚠️ | %1 users do not have admin role:\n%2",
             missingIdRemove: "⚠️ | Please provide an ID, tag a user, or reply to a message to remove admin role",
             adminList: "📋 | Admin List (%1 users):\n%2",
-            noAdmins: "⚠️ | There are currently no users with admin role"
+            noAdmins: "⚠️ | There are currently no users with admin role",
+            databaseError: "❌ | Database error occurred. Please try again later."
         }
     },
 
     onStart: async function ({ message, args, usersData, event, getLang }) {
-        switch (args[0]) {
-            case "add":
-            case "-a": {
-                let uids = [];
+        try {
+            // Initialize database connection and admin data
+            await initializeAdminData();
 
-                // Check for mentioned users, replied message, or direct IDs
-                if (Object.keys(event.mentions).length > 0) {
-                    uids = Object.keys(event.mentions);
-                } else if (event.messageReply) {
-                    uids.push(event.messageReply.senderID);
-                } else {
-                    uids = args.slice(1).filter(arg => !isNaN(arg));
-                }
+            switch (args[0]) {
+                case "add":
+                case "-a": {
+                    let uids = [];
 
-                if (uids.length === 0) {
-                    return message.reply(getLang("missingIdAdd"));
-                }
+                    // Check for mentioned users, replied message, or direct IDs
+                    if (Object.keys(event.mentions).length > 0) {
+                        uids = Object.keys(event.mentions);
+                    } else if (event.messageReply) {
+                        uids.push(event.messageReply.senderID);
+                    } else {
+                        uids = args.filter(arg => !isNaN(arg));
+                    }
 
-                const newAdmins = [];
-                const alreadyAdmins = [];
+                    if (uids.length === 0) {
+                        return message.reply(getLang("missingIdAdd"));
+                    }
 
-                for (const uid of uids) {
-                    try {
-                        // Check if user exists in database, if not create them
-                        let userData = await usersData.get(uid);
-                        if (!userData) {
-                            await usersData.create(uid);
-                            userData = await usersData.get(uid);
-                        }
+                    const newAdmins = [];
+                    const alreadyAdmins = [];
 
-                        // Check if already admin
-                        const isCurrentlyAdmin = (userData.data && userData.data.isAdmin) || config.adminBot.includes(uid);
-                        
-                        if (isCurrentlyAdmin) {
+                    for (const uid of uids) {
+                        const isAlreadyAdmin = await isAdmin(uid);
+                        if (isAlreadyAdmin) {
                             alreadyAdmins.push(uid);
                         } else {
                             newAdmins.push(uid);
+                            await addAdminToDatabase(uid);
                         }
-                    } catch (error) {
-                        console.error(`Error checking user ${uid}:`, error);
                     }
+
+                    const newAdminNames = await Promise.all(newAdmins.map(uid => usersData.getName(uid)));
+                    const alreadyAdminNames = await Promise.all(alreadyAdmins.map(uid => usersData.getName(uid)));
+
+                    return message.reply(
+                        (newAdmins.length > 0 ? 
+                            getLang("added", newAdmins.length, newAdminNames.map(name => `• ${name}`).join("\n")) : "") +
+                        (alreadyAdmins.length > 0 ? 
+                            getLang("alreadyAdmin", alreadyAdmins.length, alreadyAdminNames.map(name => `• ${name}`).join("\n")) : "")
+                    );
                 }
 
-                // Update database and config for new admins
-                for (const uid of newAdmins) {
-                    try {
-                        // Update database
-                        await usersData.set(uid, {
-                            isAdmin: true
-                        }, "data");
+                case "remove":
+                case "-r": {
+                    let uids = [];
 
-                        // Update config file for immediate effect and persistence
-                        if (!config.adminBot.includes(uid)) {
-                            config.adminBot.push(uid);
-                        }
-                    } catch (error) {
-                        console.error(`Error adding admin ${uid}:`, error);
+                    // Check for mentioned users, replied message, or direct IDs
+                    if (Object.keys(event.mentions).length > 0) {
+                        uids = Object.keys(event.mentions);
+                    } else if (event.messageReply) {
+                        uids.push(event.messageReply.senderID);
+                    } else {
+                        uids = args.filter(arg => !isNaN(arg));
                     }
-                }
 
-                // Save config changes
-                if (newAdmins.length > 0) {
-                    try {
-                        writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
-                    } catch (error) {
-                        console.error("Error saving config:", error);
+                    if (uids.length === 0) {
+                        return message.reply(getLang("missingIdRemove"));
                     }
-                }
 
-                const newAdminNames = await Promise.all(newAdmins.map(async uid => {
-                    try {
-                        return await usersData.getName(uid);
-                    } catch {
-                        return uid;
-                    }
-                }));
-                
-                const alreadyAdminNames = await Promise.all(alreadyAdmins.map(async uid => {
-                    try {
-                        return await usersData.getName(uid);
-                    } catch {
-                        return uid;
-                    }
-                }));
+                    const removedAdmins = [];
+                    const notAdmins = [];
 
-                return message.reply(
-                    (newAdmins.length > 0 ? 
-                        getLang("added", newAdmins.length, newAdminNames.map(name => `• ${name}`).join("\n")) : "") +
-                    (alreadyAdmins.length > 0 ? 
-                        getLang("alreadyAdmin", alreadyAdmins.length, alreadyAdminNames.map(name => `• ${name}`).join("\n")) : "")
-                );
-            }
-
-            case "remove":
-            case "-r": {
-                let uids = [];
-
-                // Check for mentioned users, replied message, or direct IDs
-                if (Object.keys(event.mentions).length > 0) {
-                    uids = Object.keys(event.mentions);
-                } else if (event.messageReply) {
-                    uids.push(event.messageReply.senderID);
-                } else {
-                    uids = args.slice(1).filter(arg => !isNaN(arg));
-                }
-
-                if (uids.length === 0) {
-                    return message.reply(getLang("missingIdRemove"));
-                }
-
-                const removedAdmins = [];
-                const notAdmins = [];
-
-                for (const uid of uids) {
-                    try {
-                        const userData = await usersData.get(uid);
-                        const isCurrentlyAdmin = (userData && userData.data && userData.data.isAdmin) || config.adminBot.includes(uid);
-                        
+                    for (const uid of uids) {
+                        const isCurrentlyAdmin = await isAdmin(uid);
                         if (isCurrentlyAdmin) {
                             removedAdmins.push(uid);
+                            await removeAdminFromDatabase(uid);
                         } else {
                             notAdmins.push(uid);
                         }
-                    } catch (error) {
-                        console.error(`Error checking user ${uid}:`, error);
-                        notAdmins.push(uid);
                     }
+
+                    const removedAdminNames = await Promise.all(removedAdmins.map(uid => usersData.getName(uid)));
+                    const notAdminNames = await Promise.all(notAdmins.map(uid => usersData.getName(uid)));
+
+                    return message.reply(
+                        (removedAdmins.length > 0 ? 
+                            getLang("removed", removedAdmins.length, removedAdminNames.map(name => `• ${name}`).join("\n")) : "") +
+                        (notAdmins.length > 0 ? 
+                            getLang("notAdmin", notAdmins.length, notAdminNames.map(name => `• ${name}`).join("\n")) : "")
+                    );
                 }
-
-                // Update database and config for removed admins
-                for (const uid of removedAdmins) {
-                    try {
-                        // Update database
-                        await usersData.set(uid, {
-                            isAdmin: false
-                        }, "data");
-
-                        // Update config file
-                        const index = config.adminBot.indexOf(uid);
-                        if (index > -1) {
-                            config.adminBot.splice(index, 1);
-                        }
-                    } catch (error) {
-                        console.error(`Error removing admin ${uid}:`, error);
-                    }
-                }
-
-                // Save config changes
-                if (removedAdmins.length > 0) {
-                    try {
-                        writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
-                    } catch (error) {
-                        console.error("Error saving config:", error);
-                    }
-                }
-
-                const removedAdminNames = await Promise.all(removedAdmins.map(async uid => {
-                    try {
-                        return await usersData.getName(uid);
-                    } catch {
-                        return uid;
-                    }
-                }));
                 
-                const notAdminNames = await Promise.all(notAdmins.map(async uid => {
-                    try {
-                        return await usersData.getName(uid);
-                    } catch {
-                        return uid;
-                    }
-                }));
-
-                return message.reply(
-                    (removedAdmins.length > 0 ? 
-                        getLang("removed", removedAdmins.length, removedAdminNames.map(name => `• ${name}`).join("\n")) : "") +
-                    (notAdmins.length > 0 ? 
-                        getLang("notAdmin", notAdmins.length, notAdminNames.map(name => `• ${name}`).join("\n")) : "")
-                );
-            }
-            
-            case "list":
-            case "-l": {
-                try {
-                    // Get all users with admin role from database
-                    const allUsers = await usersData.getAll();
-                    const adminUsers = [];
+                case "list":
+                case "-l": {
+                    const adminList = await getAdminList();
                     
-                    for (const [uid, userData] of allUsers) {
-                        if (userData.data && userData.data.isAdmin) {
-                            adminUsers.push(uid);
-                        }
-                    }
-                    
-                    // Also include config admins and merge them
-                    const configAdmins = config.adminBot || [];
-                    const allAdmins = [...new Set([...adminUsers, ...configAdmins])]; // Remove duplicates
-                    
-                    if (allAdmins.length === 0) {
+                    if (adminList.length === 0) {
                         return message.reply(getLang("noAdmins"));
                     }
                     
-                    const adminNames = await Promise.all(allAdmins.map(async (uid) => {
-                        try {
-                            const name = await usersData.getName(uid);
-                            return `• ${name} (${uid})`;
-                        } catch {
-                            return `• ${uid}`;
-                        }
+                    const adminNames = await Promise.all(adminList.map(async (uid) => {
+                        const name = await usersData.getName(uid);
+                        return `• ${name} (${uid})`;
                     }));
                     
-                    return message.reply(getLang("adminList", allAdmins.length, adminNames.join("\n")));
-                } catch (error) {
-                    console.error("Error listing admins:", error);
-                    return message.reply("❌ | Error occurred while fetching admin list.");
+                    return message.reply(getLang("adminList", adminList.length, adminNames.join("\n")));
+                }
+
+                default: {
+                    return message.reply("⚠️ | Invalid command! Use 'add', 'remove', or 'list'.");
                 }
             }
-
-            default: {
-                return message.reply("⚠️ | Invalid command! Use 'add', 'remove', or 'list'.");
-            }
+        } catch (error) {
+            console.error("Admin management error:", error);
+            return message.reply(getLang("databaseError"));
         }
     }
-}
+};
