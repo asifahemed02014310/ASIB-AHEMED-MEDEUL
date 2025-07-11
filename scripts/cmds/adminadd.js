@@ -5,11 +5,11 @@ module.exports = {
     config: {
         name: "adminadd",
         aliases:["ad"],
-        version: "1.2",
-        author: "Nur",
+        version: "1.3",
+        author: "Hamim",
         countDown: 5,
         role: 2,
-		category: "𝗕𝗢𝗧 𝗠𝗔𝗡𝗔𝗚𝗘𝗠𝗘𝗡𝗧",
+        category: "𝗕𝗢𝗧 𝗠𝗔𝗡𝗔𝗚𝗘𝗠𝗘𝗡𝗧",
         guide: {
             en: "   {pn} [add | -a] <uid | @tag>: Add admin role for a user\n" +
                 "   {pn} [remove | -r] <uid | @tag>: Remove admin role from a user\n" +
@@ -54,14 +54,25 @@ module.exports = {
                 const alreadyAdmins = [];
 
                 for (const uid of uids) {
-                    if (config.adminBot.includes(uid)) {
+                    const userData = await usersData.get(uid);
+                    
+                    if (userData && userData.data && userData.data.isAdmin) {
                         alreadyAdmins.push(uid);
                     } else {
                         newAdmins.push(uid);
                     }
                 }
 
-                config.adminBot.push(...newAdmins);
+                // Update database for new admins
+                for (const uid of newAdmins) {
+                    await usersData.set(uid, {
+                        isAdmin: true
+                    }, "data");
+                }
+
+                // Also update config for immediate effect (backward compatibility)
+                const configNewAdmins = newAdmins.filter(uid => !config.adminBot.includes(uid));
+                config.adminBot.push(...configNewAdmins);
                 writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
 
                 const newAdminNames = await Promise.all(newAdmins.map(uid => usersData.getName(uid)));
@@ -96,14 +107,29 @@ module.exports = {
                 const notAdmins = [];
 
                 for (const uid of uids) {
-                    if (config.adminBot.includes(uid)) {
+                    const userData = await usersData.get(uid);
+                    
+                    if (userData && userData.data && userData.data.isAdmin) {
                         removedAdmins.push(uid);
-                        config.adminBot.splice(config.adminBot.indexOf(uid), 1);
                     } else {
                         notAdmins.push(uid);
                     }
                 }
 
+                // Update database for removed admins
+                for (const uid of removedAdmins) {
+                    await usersData.set(uid, {
+                        isAdmin: false
+                    }, "data");
+                }
+
+                // Also update config for immediate effect (backward compatibility)
+                for (const uid of removedAdmins) {
+                    const index = config.adminBot.indexOf(uid);
+                    if (index > -1) {
+                        config.adminBot.splice(index, 1);
+                    }
+                }
                 writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
 
                 const removedAdminNames = await Promise.all(removedAdmins.map(uid => usersData.getName(uid)));
@@ -119,16 +145,30 @@ module.exports = {
             
             case "list":
             case "-l": {
-                if (config.adminBot.length === 0) {
+                // Get all users with admin role from database
+                const allUsers = await usersData.getAll();
+                const adminUsers = [];
+                
+                for (const [uid, userData] of allUsers) {
+                    if (userData.data && userData.data.isAdmin) {
+                        adminUsers.push(uid);
+                    }
+                }
+                
+                // Also include config admins for backward compatibility
+                const configAdmins = config.adminBot.filter(uid => !adminUsers.includes(uid));
+                const allAdmins = [...adminUsers, ...configAdmins];
+                
+                if (allAdmins.length === 0) {
                     return message.reply(getLang("noAdmins"));
                 }
                 
-                const adminNames = await Promise.all(config.adminBot.map(async (uid) => {
+                const adminNames = await Promise.all(allAdmins.map(async (uid) => {
                     const name = await usersData.getName(uid);
                     return `• ${name} (${uid})`;
                 }));
                 
-                return message.reply(getLang("adminList", config.adminBot.length, adminNames.join("\n")));
+                return message.reply(getLang("adminList", allAdmins.length, adminNames.join("\n")));
             }
 
             default: {
@@ -136,4 +176,4 @@ module.exports = {
             }
         }
     }
-};
+}
