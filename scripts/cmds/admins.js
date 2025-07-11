@@ -1,9 +1,9 @@
- const { config } = global.GoatBot;
+const { config } = global.GoatBot;
 
 module.exports = {
   config: {
     name: "admin",
-    version: "1.5",
+    version: "1.6",
     author: "Nur Hamim",
     countDown: 2,
     role: 0,
@@ -32,18 +32,36 @@ module.exports = {
       return message.reply(getLang("wrongCmd"));
     }
 
-    const adminIds = config.adminBot || [];
+    // Get admins from database
+    const allUsers = await usersData.getAll();
+    const databaseAdmins = [];
+    
+    for (const [uid, userData] of allUsers) {
+      if (userData.data && userData.data.isAdmin) {
+        databaseAdmins.push(uid);
+      }
+    }
 
-    if (adminIds.length === 0) {
+    // Get admins from config (for backward compatibility)
+    const configAdmins = config.adminBot || [];
+    
+    // Combine both sources and remove duplicates
+    const allAdmins = [...new Set([...databaseAdmins, ...configAdmins])];
+
+    if (allAdmins.length === 0) {
       return message.reply(getLang("noAdmins"));
     }
 
     const emojis = ["🥇", "🥈", "🥉", "️🎖️", "🎀", "🌟"];
 
     const adminNames = await Promise.all(
-      adminIds.map(async (uid, index) => {
+      allAdmins.map(async (uid, index) => {
         const name = await usersData.getName(uid);
-        return `${emojis[index % emojis.length]} ${name}\n     ➥UID: (${uid})`;
+        const userData = await usersData.get(uid);
+        const isDbAdmin = userData && userData.data && userData.data.isAdmin;
+        const adminType = isDbAdmin ? "DB" : "config";
+        
+        return `${emojis[index % emojis.length]} ${name}\n     ➥UID: (${uid})\n     ➥Type: ${adminType}`;
       })
     );
 
