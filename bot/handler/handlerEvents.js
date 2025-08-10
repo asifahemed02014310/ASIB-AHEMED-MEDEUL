@@ -261,15 +261,32 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
 			// —————  CHECK BANNED OR ONLY ADMIN BOX  ————— //
 			if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode))
 				return;
-			if (!command)
-				if (!hideNotiMessage.commandNotFound)
-					return await message.reply(
-						commandName ?
-							utils.getText({ lang: langCode, head: "handlerEvents" }, "commandNotFound", commandName, prefix) :
-							utils.getText({ lang: langCode, head: "handlerEvents" }, "commandNotFound2", prefix)
-					);
-				else
-					return true;
+			if (!command) {
+    if (!hideNotiMessage.commandNotFound) {
+        // ========== COMMAND SUGGESTION SYSTEM ========== //
+        const allCommands = Array.from(GoatBot.commands.keys());
+        const aliases = Array.from(GoatBot.aliases.keys());
+        const groupAliases = threadData.data.aliases ? Object.values(threadData.data.aliases).flat() : [];
+        const allPossible = [...new Set([...allCommands, ...aliases, ...groupAliases])];
+        
+        const suggestedCommands = allPossible.filter(cmd => 
+            cmd.toLowerCase().startsWith(commandName.toLowerCase()) && cmd !== commandName
+        ).slice(0, 5);
+        
+        if (suggestedCommands.length > 0) {
+            const suggestionText = `⚠️ The command "${commandName}" doesn't exist. Did you mean:\n${suggestedCommands.map(cmd => `• ${prefix}${cmd}`).join('\n')}`;
+            return await message.reply(suggestionText);
+        }
+        // ========== END SUGGESTION SYSTEM ========== //
+        
+        return await message.reply(
+            commandName ?
+                utils.getText({ lang: langCode, head: "handlerEvents" }, "commandNotFound", commandName, prefix) :
+                utils.getText({ lang: langCode, head: "handlerEvents" }, "commandNotFound2", prefix)
+        );
+    }
+    else return true;
+			}
 			// ————————————— CHECK PERMISSION ———————————— //
 			const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
 			const needRole = roleConfig.onStart;
