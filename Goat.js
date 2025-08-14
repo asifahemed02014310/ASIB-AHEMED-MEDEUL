@@ -218,6 +218,7 @@ if (config.autoRestart) {
 
 (async () => {
 	// ———————————————— SETUP MAIL ———————————————— //
+	/*
 	const { gmailAccount } = config.credentials;
 	const { email, clientId, clientSecret, refreshToken } = gmailAccount;
 	const OAuth2 = google.auth.OAuth2;
@@ -270,6 +271,7 @@ if (config.autoRestart) {
 
 	global.utils.sendMail = sendMail;
 	global.utils.transporter = transporter;
+ */
 
 	// ———————————————— CHECK VERSION ———————————————— //
 	const { data: { version } } = await axios.get("https://raw.githubusercontent.com/ntkhang03/Goat-Bot-V2/main/package.json");
