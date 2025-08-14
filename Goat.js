@@ -285,8 +285,8 @@ if (config.autoRestart) {
 			colors.hex("#eb6a07", "node update")
 		));
 	// —————————— CHECK FOLDER GOOGLE DRIVE —————————— //
-	const parentIdGoogleDrive = await utils.drive.checkAndCreateParentFolder("GoatBot");
-	utils.drive.parentID = parentIdGoogleDrive;
+//	const parentIdGoogleDrive = await utils.drive.checkAndCreateParentFolder("GoatBot");
+//	utils.drive.parentID = parentIdGoogleDrive;
 	// ———————————————————— LOGIN ———————————————————— //
 	require(`./bot/login/login${NODE_ENV === 'development' ? '.dev.js' : '.js'}`);
 })();
