@@ -16,8 +16,8 @@ module.exports = {
   langs: {
     en: {
       listAdmin:
-        "╔═━「 🛡️ 𝑽𝑰𝑿𝑨'𝒔 𝑨𝑫𝑴𝑰𝑵𝑺 」━═╗" +
-        "\n\n✨ 𝑶𝒘𝒏𝒆𝒓 ~ ᴀꜱɪʙ 𝓐Һ𝙚𝑚𝙚𝑑 𝕄𝔼𝔻𝔼𝕌𝕃" +
+        "╔═━「 🛡️ 💝PAKHI🕊💖'𝒔 𝑨𝑫𝑴𝑰𝑵𝑺 」━═╗" +
+        "\n\n✨ 𝑶𝒘𝒏𝒆𝒓 ~ ᴀꜱɪʙ " +
         "\n\n%1" +
         "\n\n𝗙𝗕 : https://www.facebook.com/Hehe.Heheehehehe0"+
         "\n\n╚═━「 💌 𝑪𝒐𝒏𝒕𝒂𝒄𝒕 𝒇𝒐𝒓 𝒔𝒖𝒑𝒑𝒐𝒓𝒕 」━═╝",
