@@ -29,7 +29,7 @@
         "leavemoji": ["👎"],
 	"whiteListMode": {
 		"enable": false,
-		"whiteListIds": ["100086060347129", "100075475569229"],
+		"whiteListIds": ["", ""],
 		"notes": "if you enable this feature, only the ids in the whiteListIds list can use the bot"
 	},
 	"permitThread": {
