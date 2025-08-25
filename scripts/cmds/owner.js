@@ -3,7 +3,7 @@ const { GoatWrapper } = require('fca-liane-utils');
 module.exports = {
 	config: {
 		name: "owner",
-		author: "Nur",
+		author: "ᴀꜱɪʙ 𝓐Һ𝙚𝑚𝙚𝑑 𝕄𝔼𝔻𝔼𝕌𝕃",
 		role: 0,
 		shortDescription: "Show owner's info",
 		longDescription: "Displays the basic details of the bot owner without socials or birthday.",
@@ -14,7 +14,7 @@ module.exports = {
 	onStart: async function ({ api, event }) {
 		try {
 			const info = {
-				name: '𝗡𝘂𝗿 𝗛𝗮𝗺𝗶𝗺 𝗕𝗮𝗱𝗵𝗼𝗻',
+				name: 'ᴀꜱɪʙ 𝓐Һ𝙚𝑚𝙚𝑑 𝕄𝔼𝔻𝔼𝕌𝕃',
 				age: '𝟭𝟵+',
 				religion: '𝗜𝘀𝗹𝗮𝗺'
 			};
