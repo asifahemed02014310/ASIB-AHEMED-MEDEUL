@@ -60,7 +60,7 @@
     },
     {
         "name": "fr",
-        "value": "1ULOKhpenwE3aiJsI.AWfsrIqqPbMxYPIU0MZWZfIBg9-csPxtTsM9xbpU6vhZt1JJ0lw.BovEit..AAA.0.0.BovEit.AWfV7i9dNaOZRBeiH4GFBjhdzAk",
+        "value": "1ULOKhpenwE3aiJsI.AWewGp10_6s2LNG7IaLsbTw5t5rAnNh6PihcozNawPKsvoC3fKQ.BovEit..AAA.0.0.BovElq.AWcQ3GxIOdyADSKQNfMQHhhjtXI",
         "domain": ".facebook.com",
         "hostOnly": false,
         "path": "/",
@@ -70,7 +70,7 @@
         "session": false,
         "firstPartyDomain": "",
         "partitionKey": null,
-        "expirationDate": 1764945835.064,
+        "expirationDate": 1764946024.325,
         "storeId": null
     },
     {
@@ -104,21 +104,6 @@
         "storeId": null
     },
     {
-        "name": "xs",
-        "value": "25%3AMB_nYNIumwx_fg%3A2%3A1756801688%3A-1%3A-1%3A%3AAcVhF3s_DoHpB7Yt49KlEd70hxJfnUZhNQ-9P_ytrA",
-        "domain": ".facebook.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": true,
-        "sameSite": "no_restriction",
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1788705835.064,
-        "storeId": null
-    },
-    {
         "name": "saved_user_sessions",
         "value": "228354902%3AfwHLkfNXi1oQfcm9084GEMzYZ0MsEwU0gbmM4Ye65t-D8HLa",
         "domain": "github.com",
@@ -134,23 +119,8 @@
         "storeId": null
     },
     {
-        "name": "c_user",
-        "value": "61579630238911",
-        "domain": ".facebook.com",
-        "hostOnly": false,
-        "path": "/",
-        "secure": true,
-        "httpOnly": false,
-        "sameSite": "no_restriction",
-        "session": false,
-        "firstPartyDomain": "",
-        "partitionKey": null,
-        "expirationDate": 1788705835.064,
-        "storeId": null
-    },
-    {
         "name": "presence",
-        "value": "C%7B%22t3%22%3A%5B%5D%2C%22utc3%22%3A1757169840923%2C%22v%22%3A1%7D",
+        "value": "C%7B%22t3%22%3A%5B%5D%2C%22utc3%22%3A1757170070124%2C%22v%22%3A1%7D",
         "domain": ".facebook.com",
         "hostOnly": false,
         "path": "/",
@@ -179,7 +149,7 @@
     },
     {
         "name": "_gh_sess",
-        "value": "EC1rg7kdKFb%2FD3iHIEm2F0Gk2uJ3aIe6asQiepe7TXMI9X%2BV7K6SThhx5zXWodLq59trBJ7X09cGSkDzc7m39a0uATm64S4cvvRsAdzp0bfRxjutbNu%2FLd6z4ZYR25RXPNMhhAw%2FkfwSJ9Jn8cgitGJmxHQ2jKAO%2BTqgW4AaSUCk9FZ1uVgOZcqa89Pb88d3%2BSlZykkF4PW21wOhECfjFWkE6%2BO8iHSkpwfSfhVEqnWJ4TzvbrC999tkxr61PYzIj4xxBbCZjQlI8PMQ5r8pghwexmhRJ%2FRCF4eMdcdVbKJz0hdDPw56hhPL6e97gn6TuWwOJOt4iV44zwjbeXQtypNGc%2BM0Gaemg1tux0ZWc8jrhAf3Hm9nGjykY02LnPA9--weQ4GvAkxvaaVZMc--4KPFvPOmygoeRghIVndkmA%3D%3D",
+        "value": "kjNiGniB42PqcuinzFcibrHApZ%2BWYtY0sSEJlHC0yCEZ8rP64zeLfr4TeiIabXi8Jy%2BCPNmQVtvxTQxD3akjnsaRNJNG%2BkLc6ycJOdcnGzBI%2B%2BdQUBTSwI22zmI5uXRQhAp40%2BvBc74GGioa2pN76qavBSAZit10CY5oL9HDnHEwIYzFW0IHHI%2Fl62VKsHzS2hL1%2F5jhuUnIWPM5dDZKUJFsmgzIQexxkEytqy0Q9tQgY0nZRtOgY%2Ftcib3i4X%2FgHaIx7sym4PDU9sV8Vr8KZBJVt%2BOctBnTrPQQ1ETzb3xgGj0WmgtWfaPYLrTVAfT18DHMZyW6rCpmfxZWKve%2FLRvw5yCpiSRO36OAVdYlcg0i4ITzm51%2FmAfVWssWRUoZkYxT4BCxhsfHFmD6eVqj4Yugd3o%3D--Wlo8E8qDOYCNMwU3--Nuh05%2BPkgOQOjwBY5Yrntg%3D%3D",
         "domain": "github.com",
         "hostOnly": true,
         "path": "/",
@@ -291,6 +261,21 @@
         "firstPartyDomain": "",
         "partitionKey": null,
         "expirationDate": 1758378578.631,
+        "storeId": null
+    },
+    {
+        "name": "wd",
+        "value": "1529x955",
+        "domain": ".facebook.com",
+        "hostOnly": false,
+        "path": "/",
+        "secure": true,
+        "httpOnly": false,
+        "sameSite": "lax",
+        "session": false,
+        "firstPartyDomain": "",
+        "partitionKey": null,
+        "expirationDate": 1757774834,
         "storeId": null
     }
 ]
